@@ -1,4 +1,4 @@
-import { FormData } from '../Wizard'
+import { FormData } from './Wizard'
 
 const KEYS = ['C', 'C#/Db', 'D', 'D#/Eb', 'E', 'F', 'F#/Gb', 'G', 'G#/Ab', 'A', 'A#/Bb', 'B']
 const TIME_SIGS = ['4/4', '3/4', '6/8', '5/4', '7/8']
