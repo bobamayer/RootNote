@@ -6,17 +6,15 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "node",
-    "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": false,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "baseUrl": "src"
   },
-  "include": ["src", "src/components", "src/components/steps"],
+  "include": ["src"],
   "exclude": ["node_modules"]
 }
