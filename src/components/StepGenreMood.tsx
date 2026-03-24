@@ -1,4 +1,4 @@
-import { FormData } from '../Wizard'
+import { FormData } from './Wizard'
 
 const GENRES = ['Rock', 'Blues', 'Jazz', 'Folk', 'Pop', 'Country', 'R&B', 'Classical', 'Metal', 'Indie', 'Funk', 'Latin']
 const MOODS = ['Melancholic', 'Uplifting', 'Tense', 'Dreamy', 'Gritty', 'Hopeful', 'Dark', 'Peaceful', 'Energetic', 'Bittersweet', 'Romantic', 'Mysterious']
