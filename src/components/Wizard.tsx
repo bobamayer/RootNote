@@ -31,7 +31,7 @@ const INITIAL: FormData = {
 
 const STEPS = ['Instrument', 'Genre & Mood', 'Details', 'Complexity']
 
-const WORKER_URL = string = import.meta.env.https://rootnote-worker.bob-a-mayer.workers.dev
+const WORKER_URL = String(import.meta.env['https://rootnote-worker.bob-a-mayer.workers.dev'] || '')
 
 export default function Wizard() {
   const [step, setStep] = useState(0)
