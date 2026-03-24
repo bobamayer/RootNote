@@ -31,7 +31,7 @@ const INITIAL: FormData = {
 
 const STEPS = ['Instrument', 'Genre & Mood', 'Details', 'Complexity']
 
-const WORKER_URL = String(import.meta.env['https://rootnote-worker.bob-a-mayer.workers.dev'] || '')
+const WORKER_URL = import.meta.env.VITE_WORKER_URL
 
 export default function Wizard() {
   const [step, setStep] = useState(0)
@@ -60,8 +60,9 @@ export default function Wizard() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       setResult(data.result)
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Something went wrong'
+      setError(msg)
     } finally {
       setLoading(false)
     }
