@@ -1,4 +1,4 @@
-import { FormData } from '../Wizard'
+import { FormData } from './Wizard'
 
 const INSTRUMENTS = ['Piano', 'Guitar (Acoustic)', 'Guitar (Electric)', 'Bass', 'Ukulele']
 
