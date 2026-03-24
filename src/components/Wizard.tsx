@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import StepInstrument from './steps/StepInstrument'
-import StepGenreMood from './steps/StepGenreMood'
-import StepDetails from './steps/StepDetails'
-import StepComplexity from './steps/StepComplexity'
+import StepInstrument from './StepInstrument'
+import StepGenreMood from './StepGenreMood'
+import StepDetails from './StepDetails'
+import StepComplexity from './StepComplexity'
 import Output from './Output'
 
 export type FormData = {
