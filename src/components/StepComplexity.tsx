@@ -1,4 +1,4 @@
-import { FormData } from '../Wizard'
+import { FormData } from './Wizard'
 
 export default function StepComplexity({ form, update }: { form: FormData, update: (f: Partial<FormData>) => void }) {
   const label = form.complexity < 34 ? 'Beginner' : form.complexity < 67 ? 'Intermediate' : 'Advanced'
