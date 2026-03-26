@@ -69,6 +69,15 @@ function parseChords(text: string): string[] {
   return []
 }
 
+// Play a silent buffer — this is the key to keeping iOS unlocked between taps
+function unlockAudio(ctx: AudioContext) {
+  const buffer = ctx.createBuffer(1, 1, 22050)
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+  source.connect(ctx.destination)
+  source.start(0)
+}
+
 function scheduleChords(ctx: AudioContext, chords: string[]) {
   const chordDuration = 1.2
   const noteFadeDuration = 0.8
@@ -76,7 +85,7 @@ function scheduleChords(ctx: AudioContext, chords: string[]) {
   chords.forEach((chord, i) => {
     const notes = CHORD_NOTES[chord]
     if (!notes) return
-    const startTime = ctx.currentTime + 0.1 + i * chordDuration
+    const startTime = ctx.currentTime + 0.15 + i * chordDuration
 
     notes.forEach((note, noteIndex) => {
       const freq = NOTE_FREQUENCIES[note]
@@ -99,6 +108,9 @@ function scheduleChords(ctx: AudioContext, chords: string[]) {
   })
 }
 
+// Single shared context — created once, kept alive
+let ctx: AudioContext | null = null
+
 export function useAudio() {
   function playProgression(text: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -112,24 +124,23 @@ export function useAudio() {
         const AudioContextClass =
           (window as any).AudioContext || (window as any).webkitAudioContext
 
-        // Always create a fresh AudioContext per play — fixes iOS second-tap issue
-        const ctx: AudioContext = new AudioContextClass()
+        // Create context once — reuse forever
+        if (!ctx || ctx.state === 'closed') {
+          ctx = new AudioContextClass()
+        }
+
+        // Always play silent buffer synchronously within gesture — unlocks iOS every time
+        unlockAudio(ctx)
 
         const ready = ctx.state === 'suspended'
           ? ctx.resume()
           : Promise.resolve()
 
         ready.then(() => {
-          scheduleChords(ctx, chords)
+          scheduleChords(ctx!, chords)
           const totalDuration = (chords.length * 1.2 + 1.5) * 1000
-          setTimeout(() => {
-            ctx.close()
-            resolve(true)
-          }, totalDuration)
-        }).catch(() => {
-          ctx.close()
-          resolve(false)
-        })
+          setTimeout(() => resolve(true), totalDuration)
+        }).catch(() => resolve(false))
 
       } catch {
         resolve(false)
