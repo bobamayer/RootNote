@@ -69,83 +69,82 @@ function parseChords(text: string): string[] {
   return []
 }
 
-// Play a silent buffer — this is the key to keeping iOS unlocked between taps
-function unlockAudio(ctx: AudioContext) {
-  const buffer = ctx.createBuffer(1, 1, 22050)
-  const source = ctx.createBufferSource()
-  source.buffer = buffer
-  source.connect(ctx.destination)
-  source.start(0)
+// Module-level context — one per app lifetime
+let audioCtx: AudioContext | null = null
+let unlocked = false
+
+function getContext(): AudioContext {
+  const AC = (window as any).AudioContext || (window as any).webkitAudioContext
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new AC()
+    unlocked = false
+  }
+  return audioCtx
 }
 
-function scheduleChords(ctx: AudioContext, chords: string[]) {
+// Plays a zero-gain buffer — must be called synchronously in tap handler
+function syncUnlock(ctx: AudioContext) {
+  if (unlocked) return
+  const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
+  const src = ctx.createBufferSource()
+  src.buffer = buf
+  src.connect(ctx.destination)
+  src.start(0)
+  unlocked = true
+}
+
+function playChords(ctx: AudioContext, chords: string[]): number {
   const chordDuration = 1.2
   const noteFadeDuration = 0.8
+  const startOffset = 0.1
 
   chords.forEach((chord, i) => {
     const notes = CHORD_NOTES[chord]
     if (!notes) return
-    const startTime = ctx.currentTime + 0.15 + i * chordDuration
+    const chordStart = ctx.currentTime + startOffset + i * chordDuration
 
-    notes.forEach((note, noteIndex) => {
+    notes.forEach((note, ni) => {
       const freq = NOTE_FREQUENCIES[note]
       if (!freq) return
-
       const osc = ctx.createOscillator()
-      const gainNode = ctx.createGain()
-      osc.connect(gainNode)
-      gainNode.connect(ctx.destination)
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
       osc.type = 'triangle'
-      osc.frequency.setValueAtTime(freq, startTime)
-
-      const noteDelay = noteIndex * 0.05
-      gainNode.gain.setValueAtTime(0, startTime + noteDelay)
-      gainNode.gain.linearRampToValueAtTime(0.15, startTime + noteDelay + 0.05)
-      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + noteDelay + noteFadeDuration)
-      osc.start(startTime + noteDelay)
-      osc.stop(startTime + noteDelay + noteFadeDuration + 0.1)
+      osc.frequency.setValueAtTime(freq, chordStart)
+      const nd = ni * 0.05
+      gain.gain.setValueAtTime(0, chordStart + nd)
+      gain.gain.linearRampToValueAtTime(0.15, chordStart + nd + 0.05)
+      gain.gain.exponentialRampToValueAtTime(0.001, chordStart + nd + noteFadeDuration)
+      osc.start(chordStart + nd)
+      osc.stop(chordStart + nd + noteFadeDuration + 0.1)
     })
   })
+
+  return (chords.length * chordDuration + startOffset + 1.5) * 1000
 }
 
-// Single shared context — created once, kept alive
-let ctx: AudioContext | null = null
-
 export function useAudio() {
+  // This must be called directly from a click handler — no async before it
   function playProgression(text: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const chords = parseChords(text)
-      if (chords.length === 0) {
-        resolve(false)
-        return
-      }
+    const chords = parseChords(text)
+    if (chords.length === 0) return Promise.resolve(false)
 
-      try {
-        const AudioContextClass =
-          (window as any).AudioContext || (window as any).webkitAudioContext
+    // All of this runs synchronously within the tap gesture
+    const ctx = getContext()
+    syncUnlock(ctx) // silent buffer — keeps iOS unlocked
 
-        // Create context once — reuse forever
-        if (!ctx || ctx.state === 'closed') {
-          ctx = new AudioContextClass()
-        }
+    if (ctx.state === 'suspended') {
+      // resume() is a Promise but iOS trusts it because syncUnlock already ran
+      return ctx.resume().then(() => {
+        const duration = playChords(ctx, chords)
+        return new Promise(resolve => setTimeout(() => resolve(true), duration))
+      }).catch(() => Promise.resolve(false))
+    }
 
-        // Always play silent buffer synchronously within gesture — unlocks iOS every time
-        unlockAudio(ctx)
-
-        const ready = ctx.state === 'suspended'
-          ? ctx.resume()
-          : Promise.resolve()
-
-        ready.then(() => {
-          scheduleChords(ctx!, chords)
-          const totalDuration = (chords.length * 1.2 + 1.5) * 1000
-          setTimeout(() => resolve(true), totalDuration)
-        }).catch(() => resolve(false))
-
-      } catch {
-        resolve(false)
-      }
-    })
+    // Context already running — play immediately
+    const duration = playChords(ctx, chords)
+    return new Promise(resolve => setTimeout(() => resolve(true), duration))
   }
 
   return { playProgression }
