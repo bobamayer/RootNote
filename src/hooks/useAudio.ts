@@ -14,88 +14,126 @@ const NOTE_FREQUENCIES: Record<string, number> = {
 }
 
 const CHORD_NOTES: Record<string, string[]> = {
-  // Major chords
   'C': ['C3', 'E3', 'G3', 'C4'], 'G': ['G2', 'B2', 'D3', 'G3'],
   'D': ['D3', 'F#3', 'A3', 'D4'], 'A': ['A2', 'C#3', 'E3', 'A3'],
   'E': ['E2', 'G#2', 'B2', 'E3'], 'F': ['F3', 'A3', 'C4', 'F4'],
   'Bb': ['Bb2', 'D3', 'F3', 'Bb3'], 'Eb': ['Eb3', 'G3', 'Bb3', 'Eb4'],
   'Ab': ['Ab2', 'C3', 'Eb3', 'Ab3'], 'Db': ['Db3', 'F3', 'Ab3', 'Db4'],
   'Gb': ['Gb2', 'Bb2', 'Db3', 'Gb3'], 'B': ['B2', 'D#3', 'F#3', 'B3'],
-  // Minor chords
   'Am': ['A2', 'C3', 'E3', 'A3'], 'Em': ['E2', 'G2', 'B2', 'E3'],
   'Dm': ['D3', 'F3', 'A3', 'D4'], 'Bm': ['B2', 'D3', 'F#3', 'B3'],
   'Gm': ['G2', 'Bb2', 'D3', 'G3'], 'Cm': ['C3', 'Eb3', 'G3', 'C4'],
   'Fm': ['F3', 'Ab3', 'C4', 'F4'], 'F#m': ['F#3', 'A3', 'C#4', 'F#4'],
   'C#m': ['C#3', 'E3', 'G#3', 'C#4'], 'G#m': ['G#2', 'B2', 'D#3', 'G#3'],
   'Bbm': ['Bb2', 'Db3', 'F3', 'Bb3'], 'Ebm': ['Eb3', 'Gb3', 'Bb3', 'Eb4'],
-  // 7th chords
   'G7': ['G2', 'B2', 'D3', 'F3'], 'C7': ['C3', 'E3', 'G3', 'Bb3'],
   'D7': ['D3', 'F#3', 'A3', 'C4'], 'A7': ['A2', 'C#3', 'E3', 'G3'],
   'E7': ['E2', 'G#2', 'B2', 'D3'], 'F7': ['F3', 'A3', 'C4', 'Eb4'],
   'B7': ['B2', 'D#3', 'F#3', 'A3'], 'Bb7': ['Bb2', 'D3', 'F3', 'Ab3'],
-  // Major 7th
   'Cmaj7': ['C3', 'E3', 'G3', 'B3'], 'Gmaj7': ['G2', 'B2', 'D3', 'F#3'],
   'Dmaj7': ['D3', 'F#3', 'A3', 'C#4'], 'Amaj7': ['A2', 'C#3', 'E3', 'G#3'],
   'Fmaj7': ['F3', 'A3', 'C4', 'E4'], 'Bbmaj7': ['Bb2', 'D3', 'F3', 'A3'],
-  // Minor 7th
+  'Emaj7': ['E2', 'G#2', 'B2', 'D#3'], 'Bmaj7': ['B2', 'D#3', 'F#3', 'A#3'],
   'Am7': ['A2', 'C3', 'E3', 'G3'], 'Em7': ['E2', 'G2', 'B2', 'D3'],
   'Dm7': ['D3', 'F3', 'A3', 'C4'], 'Bm7': ['B2', 'D3', 'F#3', 'A3'],
   'Gm7': ['G2', 'Bb2', 'D3', 'F3'], 'Cm7': ['C3', 'Eb3', 'G3', 'Bb3'],
-  // Sus chords
+  'F#m7': ['F#3', 'A3', 'C#4', 'E4'], 'C#m7': ['C#3', 'E3', 'G#3', 'B3'],
   'Asus2': ['A2', 'B2', 'E3', 'A3'], 'Dsus2': ['D3', 'E3', 'A3', 'D4'],
+  'Esus2': ['E2', 'F#2', 'B2', 'E3'], 'Gsus2': ['G2', 'A2', 'D3', 'G3'],
   'Asus4': ['A2', 'D3', 'E3', 'A3'], 'Dsus4': ['D3', 'G3', 'A3', 'D4'],
   'Esus4': ['E2', 'A2', 'B2', 'E3'], 'Gsus4': ['G2', 'C3', 'D3', 'G3'],
-  // Diminished / Augmented
+  'Csus2': ['C3', 'D3', 'G3', 'C4'], 'Csus4': ['C3', 'F3', 'G3', 'C4'],
   'Bdim': ['B2', 'D3', 'F3', 'B3'], 'Cdim': ['C3', 'Eb3', 'Gb3', 'C4'],
+  'Ddim': ['D3', 'F3', 'Ab3', 'D4'], 'Edim': ['E3', 'G3', 'Bb3', 'E4'],
   'Caug': ['C3', 'E3', 'G#3', 'C4'], 'Gaug': ['G2', 'B2', 'D#3', 'G3'],
+  'Daug': ['D3', 'F#3', 'A#3', 'D4'], 'Eaug': ['E2', 'G#2', 'C3', 'E3'],
+  'Fadd9': ['F3', 'A3', 'C4', 'G4'], 'Cadd9': ['C3', 'E3', 'G3', 'D4'],
+  'Gadd9': ['G2', 'B2', 'D3', 'A3'], 'Dadd9': ['D3', 'F#3', 'A3', 'E4'],
 }
 
 function parseChords(text: string): string[] {
-  const chordLineMatch = text.match(/\*\*Chord Names:\*\*\s*([^\n]+)/)
-  if (!chordLineMatch) return []
-  const chordLine = chordLineMatch[1]
-  return chordLine.split(/[\s\-–—,|]+/).map(c => c.trim()).filter(c => c.length > 0 && CHORD_NOTES[c])
+  // Find the FIRST chord names line only (main progression, not variation)
+  const lines = text.split('\n')
+  for (const line of lines) {
+    if (line.includes('Chord Names:')) {
+      const chordPart = line.replace(/\*\*Chord Names:\*\*/, '').replace(/Chord Names:/, '').trim()
+      const chords = chordPart
+        .split(/[\s\-–—,|]+/)
+        .map(c => c.trim().replace(/[^A-Za-z0-9#b]/g, ''))
+        .filter(c => c.length > 0 && CHORD_NOTES[c])
+      if (chords.length > 0) return chords
+    }
+  }
+  return []
 }
 
+function scheduleChords(ctx: AudioContext, chords: string[]) {
+  const chordDuration = 1.2
+  const noteFadeDuration = 0.8
+
+  chords.forEach((chord, i) => {
+    const notes = CHORD_NOTES[chord]
+    if (!notes) return
+    const startTime = ctx.currentTime + 0.1 + i * chordDuration
+
+    notes.forEach((note, noteIndex) => {
+      const freq = NOTE_FREQUENCIES[note]
+      if (!freq) return
+
+      const osc = ctx.createOscillator()
+      const gainNode = ctx.createGain()
+
+      osc.connect(gainNode)
+      gainNode.connect(ctx.destination)
+
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, startTime)
+
+      const noteDelay = noteIndex * 0.05
+      gainNode.gain.setValueAtTime(0, startTime + noteDelay)
+      gainNode.gain.linearRampToValueAtTime(0.15, startTime + noteDelay + 0.05)
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + noteDelay + noteFadeDuration)
+
+      osc.start(startTime + noteDelay)
+      osc.stop(startTime + noteDelay + noteFadeDuration + 0.1)
+    })
+  })
+}
+
+// Shared AudioContext — reuse across plays to satisfy browser policies
+let sharedCtx: AudioContext | null = null
+
 export function useAudio() {
-  async function playProgression(text: string) {
-    const chords = parseChords(text)
-    if (chords.length === 0) return false
+  function playProgression(text: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const chords = parseChords(text)
+      if (chords.length === 0) {
+        resolve(false)
+        return
+      }
 
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const chordDuration = 1.2
-    const noteFadeDuration = 0.8
+      try {
+        // Reuse or create AudioContext synchronously within the gesture handler
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext
+        if (!sharedCtx || sharedCtx.state === 'closed') {
+          sharedCtx = new AudioContextClass()
+        }
 
-    for (let i = 0; i < chords.length; i++) {
-      const chord = chords[i]
-      const notes = CHORD_NOTES[chord]
-      if (!notes) continue
-      const startTime = ctx.currentTime + i * chordDuration
+        const ctx = sharedCtx
 
-      notes.forEach((note, noteIndex) => {
-        const freq = NOTE_FREQUENCIES[note]
-        if (!freq) return
+        // Resume handles both Chrome autoplay policy and iOS unlock
+        const ready = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve()
 
-        const osc = ctx.createOscillator()
-        const gainNode = ctx.createGain()
+        ready.then(() => {
+          scheduleChords(ctx, chords)
+          const totalDuration = (chords.length * 1.2 + 1) * 1000
+          setTimeout(() => resolve(true), totalDuration)
+        }).catch(() => resolve(false))
 
-        osc.connect(gainNode)
-        gainNode.connect(ctx.destination)
-
-        osc.type = 'triangle'
-        osc.frequency.setValueAtTime(freq, startTime)
-
-        const noteDelay = noteIndex * 0.04
-        gainNode.gain.setValueAtTime(0, startTime + noteDelay)
-        gainNode.gain.linearRampToValueAtTime(0.18, startTime + noteDelay + 0.05)
-        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + noteDelay + noteFadeDuration)
-
-        osc.start(startTime + noteDelay)
-        osc.stop(startTime + noteDelay + noteFadeDuration + 0.1)
-      })
-    }
-
-    return true
+      } catch {
+        resolve(false)
+      }
+    })
   }
 
   return { playProgression }
