@@ -27,8 +27,7 @@ export default function Output({
   const handlePlayMain = () => {
     setPlayingMain(true)
     setPlayErrorMain(false)
-    // Extract just the main progression section
-    const mainSection = result.split('---')[0] || result
+    const mainSection = result.split(/\n---\n/)[0] || result
     playProgression(mainSection).then((success) => {
       if (!success) setPlayErrorMain(true)
       setPlayingMain(false)
@@ -38,9 +37,11 @@ export default function Output({
   const handlePlayVariation = () => {
     setPlayingVariation(true)
     setPlayErrorVariation(false)
-    // Extract just the variation section
-    const parts = result.split('---')
-    const variationSection = parts[1] || parts[0]
+    const parts = result.split(/\n---\n/)
+    // Join all parts after the first in case there are multiple --- dividers
+    const variationSection = parts.length > 1
+      ? parts.slice(1).join('\n---\n')
+      : parts[0]
     playProgression(variationSection).then((success) => {
       if (!success) setPlayErrorVariation(true)
       setPlayingVariation(false)
@@ -52,7 +53,8 @@ export default function Output({
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `rootnote-${form.genre}-${form.instrument}.txt`.toLowerCase().replace(/\s/g, '-')
+    a.download = `rootnote-${form.genre}-${form.instrument}.txt`
+      .toLowerCase().replace(/\s/g, '-')
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -71,14 +73,14 @@ export default function Output({
     const lines = text.split('\n')
     const elements: React.ReactNode[] = []
     let isInVariation = false
-    let chordButtonShown = false
-    let variationChordButtonShown = false
+    let mainPlayButtonShown = false
+    let variationPlayButtonShown = false
 
     lines.forEach((line, i) => {
 
-      // Track which section we're in
+      // Track section
       if (line.startsWith('## ')) {
-        if (line.includes('Variation')) isInVariation = true
+        if (line.toLowerCase().includes('variation')) isInVariation = true
         elements.push(
           <h2 key={i} className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
             {line.replace('## ', '')}
@@ -87,32 +89,34 @@ export default function Output({
         return
       }
 
-      // Chord names line — inject play button after it
+      // Chord names line — inject play button after first occurrence in each section
       if (line.includes('Chord Names:')) {
-        const isMainButton = !isInVariation && !chordButtonShown
-        const isVariationButton = isInVariation && !variationChordButtonShown
+        const showMainPlay = !isInVariation && !mainPlayButtonShown
+        const showVariationPlay = isInVariation && !variationPlayButtonShown
+        if (showMainPlay) mainPlayButtonShown = true
+        if (showVariationPlay) variationPlayButtonShown = true
 
-        if (isMainButton) chordButtonShown = true
-        if (isVariationButton) variationChordButtonShown = true
+        const isPlaying = isInVariation ? playingVariation : playingMain
+        const playError = isInVariation ? playErrorVariation : playErrorMain
+        const handlePlay = isInVariation ? handlePlayVariation : handlePlayMain
+        const showButton = showMainPlay || showVariationPlay
 
         elements.push(
           <div key={i}>
             <p className="font-bold text-ink dark:text-cream mt-3 text-sm sm:text-base break-words">
               {line.replace(/\*\*/g, '')}
             </p>
-            {(isMainButton || isVariationButton) && (
+            {showButton && (
               <div className="flex items-center gap-3 mt-3 mb-2">
                 <button
-                  onClick={isInVariation ? handlePlayVariation : handlePlayMain}
-                  disabled={isInVariation ? playingVariation : playingMain}
+                  onClick={handlePlay}
+                  disabled={isPlaying}
                   className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm sm:text-base hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation select-none"
                 >
-                  {(isInVariation ? playingVariation : playingMain)
-                    ? '♪ Playing…'
-                    : '▶ Play Chords'}
+                  {isPlaying ? '♪ Playing…' : '▶ Play Chords'}
                 </button>
-                {(isInVariation ? playErrorVariation : playErrorMain) && (
-                  <span className="text-xs text-rust/70">
+                {playError && (
+                  <span className="text-xs text-rust/70 self-center">
                     Tap again to unlock audio
                   </span>
                 )}
@@ -123,6 +127,7 @@ export default function Output({
         return
       }
 
+      // Bold labels
       if (line.includes(':**')) {
         elements.push(
           <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
@@ -132,13 +137,16 @@ export default function Output({
         return
       }
 
+      // Divider
       if (line === '---') {
         elements.push(<hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />)
         return
       }
 
+      // Skip code fences
       if (line.startsWith('```') || line === '```') return
 
+      // Section labels like [Bars 1-4]
       if (/^\[Bars/.test(line)) {
         elements.push(
           <p key={i} className="text-xs font-semibold text-sienna/60 dark:text-rust/60 mt-3 mb-1 uppercase tracking-wide">
@@ -148,6 +156,7 @@ export default function Output({
         return
       }
 
+      // Tab lines
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
       if (isTab) {
         elements.push(
@@ -158,6 +167,7 @@ export default function Output({
         return
       }
 
+      // Regular text
       elements.push(
         <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
@@ -180,10 +190,8 @@ export default function Output({
         </span>
       </div>
 
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 w-full">
-        <div className="overflow-x-auto">
-          {renderOutput(result)}
-        </div>
+      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 w-full overflow-x-auto">
+        {renderOutput(result)}
       </div>
 
       <div className="flex flex-wrap gap-2 sm:gap-3">
