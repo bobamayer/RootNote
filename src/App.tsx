@@ -3,6 +3,7 @@ import Wizard from './components/Wizard'
 export default function App() {
   return (
     <div className="min-h-screen bg-parchment dark:bg-darkbg text-ink dark:text-cream transition-colors">
+      {/* RootNote v2 */}
       <main className="flex flex-col items-center justify-start py-12 px-4">
         <div className="w-full max-w-2xl">
           <div className="text-center mb-10">
