@@ -12,7 +12,10 @@ export default function Output({
   loading: boolean
 }) {
   const [copied, setCopied] = useState(false)
-  const [playing, setPlaying] = useState(false)
+  const [playingMain, setPlayingMain] = useState(false)
+  const [playingVariation, setPlayingVariation] = useState(false)
+  const [playErrorMain, setPlayErrorMain] = useState(false)
+  const [playErrorVariation, setPlayErrorVariation] = useState(false)
   const { playProgression } = useAudio()
 
   const handleCopy = () => {
@@ -21,10 +24,27 @@ export default function Output({
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handlePlay = async () => {
-    setPlaying(true)
-    await playProgression(result)
-    setTimeout(() => setPlaying(false), 6000)
+  const handlePlayMain = () => {
+    setPlayingMain(true)
+    setPlayErrorMain(false)
+    // Extract just the main progression section
+    const mainSection = result.split('---')[0] || result
+    playProgression(mainSection).then((success) => {
+      if (!success) setPlayErrorMain(true)
+      setPlayingMain(false)
+    })
+  }
+
+  const handlePlayVariation = () => {
+    setPlayingVariation(true)
+    setPlayErrorVariation(false)
+    // Extract just the variation section
+    const parts = result.split('---')
+    const variationSection = parts[1] || parts[0]
+    playProgression(variationSection).then((success) => {
+      if (!success) setPlayErrorVariation(true)
+      setPlayingVariation(false)
+    })
   }
 
   const handleDownload = () => {
@@ -50,11 +70,15 @@ export default function Output({
   const renderOutput = (text: string) => {
     const lines = text.split('\n')
     const elements: React.ReactNode[] = []
-    let chordNamesInserted = false
+    let isInVariation = false
+    let chordButtonShown = false
+    let variationChordButtonShown = false
 
     lines.forEach((line, i) => {
-      // Section headers
+
+      // Track which section we're in
       if (line.startsWith('## ')) {
+        if (line.includes('Variation')) isInVariation = true
         elements.push(
           <h2 key={i} className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
             {line.replace('## ', '')}
@@ -63,32 +87,42 @@ export default function Output({
         return
       }
 
-      // Chord names line — inject play button right after
+      // Chord names line — inject play button after it
       if (line.includes('Chord Names:')) {
+        const isMainButton = !isInVariation && !chordButtonShown
+        const isVariationButton = isInVariation && !variationChordButtonShown
+
+        if (isMainButton) chordButtonShown = true
+        if (isVariationButton) variationChordButtonShown = true
+
         elements.push(
-          <p key={i} className="font-bold text-ink dark:text-cream mt-3 text-sm sm:text-base">
-            {line.replace(/\*\*/g, '')}
-          </p>
+          <div key={i}>
+            <p className="font-bold text-ink dark:text-cream mt-3 text-sm sm:text-base break-words">
+              {line.replace(/\*\*/g, '')}
+            </p>
+            {(isMainButton || isVariationButton) && (
+              <div className="flex items-center gap-3 mt-3 mb-2">
+                <button
+                  onClick={isInVariation ? handlePlayVariation : handlePlayMain}
+                  disabled={isInVariation ? playingVariation : playingMain}
+                  className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm sm:text-base hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation select-none"
+                >
+                  {(isInVariation ? playingVariation : playingMain)
+                    ? '♪ Playing…'
+                    : '▶ Play Chords'}
+                </button>
+                {(isInVariation ? playErrorVariation : playErrorMain) && (
+                  <span className="text-xs text-rust/70">
+                    Tap again to unlock audio
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         )
-        // Only insert play button after the FIRST chord names line
-        if (!chordNamesInserted) {
-          chordNamesInserted = true
-          elements.push(
-            <div key={`play-${i}`} className="flex justify-start mt-3 mb-2">
-              <button
-                onClick={handlePlay}
-                disabled={playing}
-                className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm sm:text-base hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 flex items-center gap-2 touch-manipulation"
-              >
-                {playing ? '♪ Playing…' : '▶ Play Chords'}
-              </button>
-            </div>
-          )
-        }
         return
       }
 
-      // Bold labels like **Tab:** **Why This Works:**
       if (line.includes(':**')) {
         elements.push(
           <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
@@ -98,27 +132,32 @@ export default function Output({
         return
       }
 
-      // Divider
       if (line === '---') {
         elements.push(<hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />)
         return
       }
 
-      // Skip code fences
       if (line.startsWith('```') || line === '```') return
 
-      // Tab lines — monospace, scrollable
-      const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
-      if (isTab) {
+      if (/^\[Bars/.test(line)) {
         elements.push(
-          <p key={i} className="font-mono text-xs sm:text-sm text-ink dark:text-cream whitespace-pre block leading-relaxed">
+          <p key={i} className="text-xs font-semibold text-sienna/60 dark:text-rust/60 mt-3 mb-1 uppercase tracking-wide">
             {line}
           </p>
         )
         return
       }
 
-      // Regular text
+      const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
+      if (isTab) {
+        elements.push(
+          <p key={i} className="font-mono text-xs sm:text-sm text-ink dark:text-cream whitespace-pre leading-relaxed">
+            {line}
+          </p>
+        )
+        return
+      }
+
       elements.push(
         <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
@@ -130,23 +169,23 @@ export default function Output({
   }
 
   return (
-    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-4 sm:p-8">
-      {/* Header */}
+    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-4 sm:p-8 w-full">
+
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust">
           Your Progression
         </h2>
-        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2">
+        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2 max-w-[40%]">
           {form.genre} · {form.instrument}
         </span>
       </div>
 
-      {/* Output content */}
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 overflow-x-auto">
-        {renderOutput(result)}
+      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 w-full">
+        <div className="overflow-x-auto">
+          {renderOutput(result)}
+        </div>
       </div>
 
-      {/* Utility buttons */}
       <div className="flex flex-wrap gap-2 sm:gap-3">
         <button
           onClick={handleCopy}
