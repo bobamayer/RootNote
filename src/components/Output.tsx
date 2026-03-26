@@ -48,68 +48,135 @@ export default function Output({
   }
 
   const renderOutput = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('## ')) return (
-        <h2 key={i} className="text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
-          {line.replace('## ', '')}
-        </h2>
-      )
-      if (line.includes(':**')) return (
-        <p key={i} className="font-bold text-ink dark:text-cream mt-3">
-          {line.replace(/\*\*/g, '')}
-        </p>
-      )
-      if (line === '---') return <hr key={i} className="border-ink/10 dark:border-cream/10 my-4" />
-      if (line.startsWith('```') || line === '```') return null
+    const lines = text.split('\n')
+    const elements: React.ReactNode[] = []
+    let chordNamesInserted = false
+
+    lines.forEach((line, i) => {
+      // Section headers
+      if (line.startsWith('## ')) {
+        elements.push(
+          <h2 key={i} className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
+            {line.replace('## ', '')}
+          </h2>
+        )
+        return
+      }
+
+      // Chord names line — inject play button right after
+      if (line.includes('Chord Names:')) {
+        elements.push(
+          <p key={i} className="font-bold text-ink dark:text-cream mt-3 text-sm sm:text-base">
+            {line.replace(/\*\*/g, '')}
+          </p>
+        )
+        // Only insert play button after the FIRST chord names line
+        if (!chordNamesInserted) {
+          chordNamesInserted = true
+          elements.push(
+            <div key={`play-${i}`} className="flex justify-start mt-3 mb-2">
+              <button
+                onClick={handlePlay}
+                disabled={playing}
+                className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm sm:text-base hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 flex items-center gap-2 touch-manipulation"
+              >
+                {playing ? '♪ Playing…' : '▶ Play Chords'}
+              </button>
+            </div>
+          )
+        }
+        return
+      }
+
+      // Bold labels like **Tab:** **Why This Works:**
+      if (line.includes(':**')) {
+        elements.push(
+          <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
+            {line.replace(/\*\*/g, '')}
+          </p>
+        )
+        return
+      }
+
+      // Divider
+      if (line === '---') {
+        elements.push(<hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />)
+        return
+      }
+
+      // Skip code fences
+      if (line.startsWith('```') || line === '```') return
+
+      // Tab lines — monospace, scrollable
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
-      return (
-        <p key={i} className={isTab
-          ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre block'
-          : 'text-sm text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed'
-        }>
+      if (isTab) {
+        elements.push(
+          <p key={i} className="font-mono text-xs sm:text-sm text-ink dark:text-cream whitespace-pre block leading-relaxed">
+            {line}
+          </p>
+        )
+        return
+      }
+
+      // Regular text
+      elements.push(
+        <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
         </p>
       )
     })
+
+    return elements
   }
 
   return (
-    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-serif font-bold text-sienna dark:text-rust">Your Progression</h2>
-        <span className="text-xs text-ink/40 dark:text-cream/40 italic">{form.genre} · {form.instrument}</span>
+    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-4 sm:p-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust">
+          Your Progression
+        </h2>
+        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2">
+          {form.genre} · {form.instrument}
+        </span>
       </div>
 
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-5 mb-3 overflow-x-auto">
+      {/* Output content */}
+      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 overflow-x-auto">
         {renderOutput(result)}
       </div>
 
-      <div className="flex justify-center mb-5">
-        <button onClick={handlePlay} disabled={playing}
-          className="px-8 py-3 rounded-xl border-2 border-sage/60 text-sage text-base font-semibold hover:bg-sage/10 transition-colors disabled:opacity-40">
-          {playing ? '♪ Playing…' : '▶ Play Chords'}
-        </button>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        <button onClick={handleCopy}
-          className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
+      {/* Utility buttons */}
+      <div className="flex flex-wrap gap-2 sm:gap-3">
+        <button
+          onClick={handleCopy}
+          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+        >
           {copied ? '✓ Copied!' : 'Copy'}
         </button>
-        <button onClick={handleDownload}
-          className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
+        <button
+          onClick={handleDownload}
+          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+        >
           Save as .txt
         </button>
-        <button onClick={handleShare}
-          className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
+        <button
+          onClick={handleShare}
+          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+        >
           Share
         </button>
-        <button onClick={onRegenerate} disabled={loading}
-          className="px-4 py-2 rounded-lg border border-sage/60 text-sage text-sm hover:bg-sage/10 transition-colors disabled:opacity-40">
+        <button
+          onClick={onRegenerate}
+          disabled={loading}
+          className="px-3 sm:px-4 py-2 rounded-lg border border-sage/60 text-sage text-xs sm:text-sm hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation"
+        >
           {loading ? 'Regenerating…' : '↺ Regenerate'}
         </button>
-        <button onClick={onReset}
-          className="px-4 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-sm hover:opacity-90 transition-opacity ml-auto">
+        <button
+          onClick={onReset}
+          className="px-3 sm:px-4 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-xs sm:text-sm hover:opacity-90 active:opacity-80 transition-opacity ml-auto touch-manipulation"
+        >
           Start Over
         </button>
       </div>
