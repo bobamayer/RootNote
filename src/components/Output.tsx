@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormData } from './Wizard'
+import { useAudio } from '../hooks/useAudio'
 
 export default function Output({
   result, form, onReset, onRegenerate, loading
@@ -11,6 +12,14 @@ export default function Output({
   loading: boolean
 }) {
   const [copied, setCopied] = useState(false)
+  const { playProgression } = useAudio()
+  const [playing, setPlaying] = useState(false)
+
+  const handlePlay = async () => {
+  setPlaying(true)
+  await playProgression(result)
+  setTimeout(() => setPlaying(false), 5000)
+}
 
   const handleCopy = () => {
     navigator.clipboard.writeText(result)
@@ -85,6 +94,10 @@ const renderOutput = (text: string) => {
         <button onClick={onReset}
           className="px-4 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-sm hover:opacity-90 transition-opacity ml-auto">
           Start Over
+        </button>
+        <button onClick={handlePlay} disabled={playing}
+          className="px-4 py-2 rounded-lg border border-sage/60 text-sage text-sm hover:bg-sage/10 transition-colors disabled:opacity-40">
+          {playing ? '♪ Playing…' : '▶ Play Chords'}
         </button>
       </div>
     </div>
