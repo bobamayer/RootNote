@@ -61,7 +61,7 @@ const renderOutput = (text: string) => {
         <span className="text-xs text-ink/40 dark:text-cream/40 italic">{form.genre} · {form.instrument}</span>
       </div>
 
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-5 mb-6 overflow-x-auto">
+      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-5 mb-6">
         {renderOutput(result)}
       </div>
 
