@@ -38,18 +38,21 @@ export default function Output({
     }
   }
 
-  const renderOutput = (text: string) => {
-    return text.split('\n').map((line, i) => {
-      if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">{line.replace('## ', '')}</h2>
-      if (line.startsWith('**') && line.endsWith('**')) return <p key={i} className="font-bold text-ink dark:text-cream mt-3">{line.replace(/\*\*/g, '')}</p>
-      if (line.includes(':**')) return <p key={i} className="font-bold text-ink dark:text-cream mt-3">{line.replace(/\*\*/g, '')}</p>
-      if (line === '---') return <hr key={i} className="border-ink/10 dark:border-cream/10 my-4" />
-      if (line.startsWith('```') || line === '```') return null
-      return (
-        <p key={i} className="tab-output text-sm text-ink/80 dark:text-cream/80">{line || '\u00A0'}</p>
-      )
-    })
-  }
+const renderOutput = (text: string) => {
+  return text.split('\n').map((line, i) => {
+    if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">{line.replace('## ', '')}</h2>
+    if (line.includes(':**')) return <p key={i} className="font-bold text-ink dark:text-cream mt-3">{line.replace(/\*\*/g, '')}</p>
+    if (line === '---') return <hr key={i} className="border-ink/10 dark:border-cream/10 my-4" />
+    if (line.startsWith('```') || line === '```') return null
+    const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
+    return (
+      <p key={i} className={isTab
+        ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre'
+        : 'text-sm text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed'
+      }>{line || '\u00A0'}</p>
+    )
+  })
+}
 
   return (
     <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8">
