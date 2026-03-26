@@ -12,19 +12,19 @@ export default function Output({
   loading: boolean
 }) {
   const [copied, setCopied] = useState(false)
-  const { playProgression } = useAudio()
   const [playing, setPlaying] = useState(false)
-
-  const handlePlay = async () => {
-  setPlaying(true)
-  await playProgression(result)
-  setTimeout(() => setPlaying(false), 5000)
-}
+  const { playProgression } = useAudio()
 
   const handleCopy = () => {
     navigator.clipboard.writeText(result)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handlePlay = async () => {
+    setPlaying(true)
+    await playProgression(result)
+    setTimeout(() => setPlaying(false), 6000)
   }
 
   const handleDownload = () => {
@@ -47,21 +47,31 @@ export default function Output({
     }
   }
 
-const renderOutput = (text: string) => {
-  return text.split('\n').map((line, i) => {
-    if (line.startsWith('## ')) return <h2 key={i} className="text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">{line.replace('## ', '')}</h2>
-    if (line.includes(':**')) return <p key={i} className="font-bold text-ink dark:text-cream mt-3">{line.replace(/\*\*/g, '')}</p>
-    if (line === '---') return <hr key={i} className="border-ink/10 dark:border-cream/10 my-4" />
-    if (line.startsWith('```') || line === '```') return null
-    const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
-    return (
-      <p key={i} className={isTab
-        ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre'
-        : 'text-sm text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed'
-      }>{line || '\u00A0'}</p>
-    )
-  })
-}
+  const renderOutput = (text: string) => {
+    return text.split('\n').map((line, i) => {
+      if (line.startsWith('## ')) return (
+        <h2 key={i} className="text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
+          {line.replace('## ', '')}
+        </h2>
+      )
+      if (line.includes(':**')) return (
+        <p key={i} className="font-bold text-ink dark:text-cream mt-3">
+          {line.replace(/\*\*/g, '')}
+        </p>
+      )
+      if (line === '---') return <hr key={i} className="border-ink/10 dark:border-cream/10 my-4" />
+      if (line.startsWith('```') || line === '```') return null
+      const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
+      return (
+        <p key={i} className={isTab
+          ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre'
+          : 'text-sm text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed'
+        }>
+          {line || '\u00A0'}
+        </p>
+      )
+    })
+  }
 
   return (
     <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8">
@@ -79,6 +89,10 @@ const renderOutput = (text: string) => {
           className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
           {copied ? '✓ Copied!' : 'Copy'}
         </button>
+        <button onClick={handlePlay} disabled={playing}
+          className="px-4 py-2 rounded-lg border border-sage/60 text-sage text-sm hover:bg-sage/10 transition-colors disabled:opacity-40">
+          {playing ? '♪ Playing…' : '▶ Play Chords'}
+        </button>
         <button onClick={handleDownload}
           className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
           Save as .txt
@@ -94,10 +108,6 @@ const renderOutput = (text: string) => {
         <button onClick={onReset}
           className="px-4 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-sm hover:opacity-90 transition-opacity ml-auto">
           Start Over
-        </button>
-        <button onClick={handlePlay} disabled={playing}
-          className="px-4 py-2 rounded-lg border border-sage/60 text-sage text-sm hover:bg-sage/10 transition-colors disabled:opacity-40">
-          {playing ? '♪ Playing…' : '▶ Play Chords'}
         </button>
       </div>
     </div>
