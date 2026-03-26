@@ -56,47 +56,45 @@ function parseChords(text: string): string[] {
   for (const line of lines) {
     if (line.includes('Chord Names:')) {
       const chordPart = line
-        .replace(/\*\*Chord Names:\*\*/, '')
-        .replace(/Chord Names:/, '')
+        .replace(/\*\*Chord Names:\*\*/gi, '')
+        .replace(/Chord Names:/gi, '')
+        .replace(/\(repeated.*?\)/gi, '')
+        .replace(/\[.*?\]/g, '')
         .trim()
+
       const chords = chordPart
-        .split(/[\s\-–—,|]+/)
+        .split(/[\s\-–—,|\/\\]+/)
         .map(c => c.trim().replace(/[^A-Za-z0-9#b]/g, ''))
         .filter(c => c.length > 0 && CHORD_NOTES[c])
+
       if (chords.length > 0) return chords
     }
   }
   return []
 }
 
-// Module-level context — one per app lifetime
 let audioCtx: AudioContext | null = null
-let unlocked = false
 
 function getContext(): AudioContext {
   const AC = (window as any).AudioContext || (window as any).webkitAudioContext
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AC()
-    unlocked = false
   }
   return audioCtx
 }
 
-// Plays a zero-gain buffer — must be called synchronously in tap handler
 function syncUnlock(ctx: AudioContext) {
-  if (unlocked) return
   const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
   const src = ctx.createBufferSource()
   src.buffer = buf
   src.connect(ctx.destination)
   src.start(0)
-  unlocked = true
 }
 
 function playChords(ctx: AudioContext, chords: string[]): number {
   const chordDuration = 1.2
   const noteFadeDuration = 0.8
-  const startOffset = 0.1
+  const startOffset = 0.15
 
   chords.forEach((chord, i) => {
     const notes = CHORD_NOTES[chord]
@@ -125,26 +123,25 @@ function playChords(ctx: AudioContext, chords: string[]): number {
 }
 
 export function useAudio() {
-  // This must be called directly from a click handler — no async before it
   function playProgression(text: string): Promise<boolean> {
     const chords = parseChords(text)
     if (chords.length === 0) return Promise.resolve(false)
 
-    // All of this runs synchronously within the tap gesture
     const ctx = getContext()
-    syncUnlock(ctx) // silent buffer — keeps iOS unlocked
+    syncUnlock(ctx)
 
-    if (ctx.state === 'suspended') {
-      // resume() is a Promise but iOS trusts it because syncUnlock already ran
-      return ctx.resume().then(() => {
-        const duration = playChords(ctx, chords)
-        return new Promise(resolve => setTimeout(() => resolve(true), duration))
-      }).catch(() => Promise.resolve(false))
+    const doPlay = () => {
+      const duration = playChords(ctx, chords)
+      return new Promise<boolean>(resolve =>
+        setTimeout(() => resolve(true), duration)
+      )
     }
 
-    // Context already running — play immediately
-    const duration = playChords(ctx, chords)
-    return new Promise(resolve => setTimeout(() => resolve(true), duration))
+    if (ctx.state === 'suspended') {
+      return ctx.resume().then(doPlay).catch(() => Promise.resolve(false))
+    }
+
+    return doPlay()
   }
 
   return { playProgression }
