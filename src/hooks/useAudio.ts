@@ -52,11 +52,13 @@ const CHORD_NOTES: Record<string, string[]> = {
 }
 
 function parseChords(text: string): string[] {
-  // Find the FIRST chord names line only (main progression, not variation)
   const lines = text.split('\n')
   for (const line of lines) {
     if (line.includes('Chord Names:')) {
-      const chordPart = line.replace(/\*\*Chord Names:\*\*/, '').replace(/Chord Names:/, '').trim()
+      const chordPart = line
+        .replace(/\*\*Chord Names:\*\*/, '')
+        .replace(/Chord Names:/, '')
+        .trim()
       const chords = chordPart
         .split(/[\s\-–—,|]+/)
         .map(c => c.trim().replace(/[^A-Za-z0-9#b]/g, ''))
@@ -82,10 +84,8 @@ function scheduleChords(ctx: AudioContext, chords: string[]) {
 
       const osc = ctx.createOscillator()
       const gainNode = ctx.createGain()
-
       osc.connect(gainNode)
       gainNode.connect(ctx.destination)
-
       osc.type = 'triangle'
       osc.frequency.setValueAtTime(freq, startTime)
 
@@ -93,15 +93,11 @@ function scheduleChords(ctx: AudioContext, chords: string[]) {
       gainNode.gain.setValueAtTime(0, startTime + noteDelay)
       gainNode.gain.linearRampToValueAtTime(0.15, startTime + noteDelay + 0.05)
       gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + noteDelay + noteFadeDuration)
-
       osc.start(startTime + noteDelay)
       osc.stop(startTime + noteDelay + noteFadeDuration + 0.1)
     })
   })
 }
-
-// Shared AudioContext — reuse across plays to satisfy browser policies
-let sharedCtx: AudioContext | null = null
 
 export function useAudio() {
   function playProgression(text: string): Promise<boolean> {
@@ -113,22 +109,27 @@ export function useAudio() {
       }
 
       try {
-        // Reuse or create AudioContext synchronously within the gesture handler
-        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext
-        if (!sharedCtx || sharedCtx.state === 'closed') {
-          sharedCtx = new AudioContextClass()
-        }
+        const AudioContextClass =
+          (window as any).AudioContext || (window as any).webkitAudioContext
 
-        const ctx = sharedCtx
+        // Always create a fresh AudioContext per play — fixes iOS second-tap issue
+        const ctx: AudioContext = new AudioContextClass()
 
-        // Resume handles both Chrome autoplay policy and iOS unlock
-        const ready = ctx.state === 'suspended' ? ctx.resume() : Promise.resolve()
+        const ready = ctx.state === 'suspended'
+          ? ctx.resume()
+          : Promise.resolve()
 
         ready.then(() => {
           scheduleChords(ctx, chords)
-          const totalDuration = (chords.length * 1.2 + 1) * 1000
-          setTimeout(() => resolve(true), totalDuration)
-        }).catch(() => resolve(false))
+          const totalDuration = (chords.length * 1.2 + 1.5) * 1000
+          setTimeout(() => {
+            ctx.close()
+            resolve(true)
+          }, totalDuration)
+        }).catch(() => {
+          ctx.close()
+          resolve(false)
+        })
 
       } catch {
         resolve(false)
