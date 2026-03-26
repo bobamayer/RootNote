@@ -1,35 +1,77 @@
 import { FormData } from './Wizard'
 
-export default function StepComplexity({ form, update }: { form: FormData, update: (f: Partial<FormData>) => void }) {
-  const label = form.complexity < 34 ? 'Beginner' : form.complexity < 67 ? 'Intermediate' : 'Advanced'
-  const desc = form.complexity < 34
-    ? 'Open chords, simple shapes, easy to play'
+const LEVELS = [
+  {
+    value: 'beginner',
+    label: 'Beginner',
+    emoji: '🌱',
+    desc: 'Open chords, simple shapes, easy to play',
+  },
+  {
+    value: 'intermediate',
+    label: 'Intermediate',
+    emoji: '🎸',
+    desc: '7ths, sus chords, barre chords, moderate voicings',
+  },
+  {
+    value: 'advanced',
+    label: 'Advanced',
+    emoji: '🎓',
+    desc: 'Extensions, jazz voicings, substitutions, complex shapes',
+  },
+]
+
+export default function StepComplexity({
+  form,
+  update,
+}: {
+  form: FormData
+  update: (f: Partial<FormData>) => void
+}) {
+  const selected = form.complexity < 34
+    ? 'beginner'
     : form.complexity < 67
-    ? '7ths, sus chords, barre chords, moderate voicings'
-    : 'Extensions, jazz voicings, substitutions, complex shapes'
+    ? 'intermediate'
+    : 'advanced'
+
+  const select = (value: string) => {
+    update({
+      complexity: value === 'beginner' ? 16 : value === 'intermediate' ? 50 : 84,
+    })
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex justify-between items-baseline mb-4">
-          <label className="text-sm font-semibold text-ink/70 dark:text-cream/70">Complexity Level</label>
-          <span className="text-lg font-serif font-bold text-sienna dark:text-rust">{label}</span>
-        </div>
-        <input type="range" min={0} max={100} value={form.complexity}
-          onChange={e => update({ complexity: Number(e.target.value) })}
-          className="w-full accent-sienna dark:accent-rust" />
-        <div className="flex justify-between text-xs text-ink/40 dark:text-cream/40 mt-1">
-          <span>Beginner</span>
-          <span>Intermediate</span>
-          <span>Advanced</span>
-        </div>
-        <p className="mt-4 text-sm italic text-ink/60 dark:text-cream/50 bg-ink/5 dark:bg-cream/5 rounded-lg p-3">
-          {desc}
-        </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {LEVELS.map((level) => (
+          <button
+            key={level.value}
+            onClick={() => select(level.value)}
+            className={`p-4 rounded-xl border-2 text-left transition-all touch-manipulation
+              ${selected === level.value
+                ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10'
+                : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
+              }`}
+          >
+            <span className="text-2xl block mb-2">{level.emoji}</span>
+            <span className={`block font-serif font-bold text-base mb-1 ${
+              selected === level.value
+                ? 'text-sienna dark:text-rust'
+                : 'text-ink dark:text-cream'
+            }`}>
+              {level.label}
+            </span>
+            <span className="block text-xs text-ink/60 dark:text-cream/50 leading-snug">
+              {level.desc}
+            </span>
+          </button>
+        ))}
       </div>
 
       <div className="border-t border-ink/10 dark:border-cream/10 pt-4">
-        <h3 className="text-sm font-semibold text-ink/70 dark:text-cream/70 mb-3">Your progression summary:</h3>
+        <h3 className="text-sm font-semibold text-ink/70 dark:text-cream/70 mb-3">
+          Your progression summary:
+        </h3>
         <dl className="space-y-1 text-sm">
           {[
             ['Instrument', form.instrument],
@@ -39,9 +81,10 @@ export default function StepComplexity({ form, update }: { form: FormData, updat
             ['Tempo', form.tempo || 'Auto'],
             ['Time Sig', form.timeSignature || '4/4'],
             ['Bars', form.bars || '4'],
+            ['Complexity', selected.charAt(0).toUpperCase() + selected.slice(1)],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">
-              <dt className="text-ink/40 dark:text-cream/40 w-20 shrink-0">{k}:</dt>
+              <dt className="text-ink/40 dark:text-cream/40 w-24 shrink-0">{k}:</dt>
               <dd className="font-semibold">{v}</dd>
             </div>
           ))}
