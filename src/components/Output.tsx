@@ -1,4 +1,4 @@
-import { useState } from 'react' // v2
+import { useState } from 'react'
 import { FormData } from './Wizard'
 import { useAudio } from '../hooks/useAudio'
 
@@ -64,7 +64,7 @@ export default function Output({
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
       return (
         <p key={i} className={isTab
-          ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre'
+          ? 'font-mono text-sm text-ink dark:text-cream whitespace-pre block'
           : 'text-sm text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed'
         }>
           {line || '\u00A0'}
@@ -80,18 +80,21 @@ export default function Output({
         <span className="text-xs text-ink/40 dark:text-cream/40 italic">{form.genre} · {form.instrument}</span>
       </div>
 
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-5 mb-6">
+      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-5 mb-3 overflow-x-auto">
         {renderOutput(result)}
+      </div>
+
+      <div className="flex justify-center mb-5">
+        <button onClick={handlePlay} disabled={playing}
+          className="px-8 py-3 rounded-xl border-2 border-sage/60 text-sage text-base font-semibold hover:bg-sage/10 transition-colors disabled:opacity-40">
+          {playing ? '♪ Playing…' : '▶ Play Chords'}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <button onClick={handleCopy}
           className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
           {copied ? '✓ Copied!' : 'Copy'}
-        </button>
-        <button onClick={handlePlay} disabled={playing}
-          className="px-4 py-2 rounded-lg border border-sage/60 text-sage text-sm hover:bg-sage/10 transition-colors disabled:opacity-40">
-          {playing ? '♪ Playing…' : '▶ Play Chords'}
         </button>
         <button onClick={handleDownload}
           className="px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-sm hover:bg-sienna/10 transition-colors">
