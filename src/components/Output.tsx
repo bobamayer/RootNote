@@ -18,6 +18,23 @@ export default function Output({
   const [playErrorVariation, setPlayErrorVariation] = useState(false)
   const { playProgression } = useAudio()
 
+  // Guard — if result is too short something went wrong
+  if (!result || result.trim().length < 50) {
+    return (
+      <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8 text-center">
+        <p className="text-ink/50 dark:text-cream/50 italic mb-4">
+          Something went wrong generating your progression. Please try again.
+        </p>
+        <button
+          onClick={onReset}
+          className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-sm hover:opacity-90 touch-manipulation"
+        >
+          Start Over
+        </button>
+      </div>
+    )
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(result)
     setCopied(true)
@@ -77,6 +94,7 @@ export default function Output({
 
     lines.forEach((line, i) => {
 
+      // Section headers
       if (line.startsWith('## ')) {
         if (line.toLowerCase().includes('variation')) isInVariation = true
         elements.push(
@@ -87,6 +105,7 @@ export default function Output({
         return
       }
 
+      // Chord names line — inject play button after first in each section
       if (line.includes('Chord Names:')) {
         const showMain = !isInVariation && !mainPlayShown
         const showVariation = isInVariation && !variationPlayShown
@@ -123,6 +142,7 @@ export default function Output({
         return
       }
 
+      // Bold labels like **Why This Works:**
       if (line.includes(':**')) {
         elements.push(
           <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
@@ -132,6 +152,7 @@ export default function Output({
         return
       }
 
+      // Divider
       if (line === '---') {
         elements.push(
           <hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />
@@ -139,8 +160,10 @@ export default function Output({
         return
       }
 
+      // Skip code fences
       if (line.startsWith('```') || line === '```') return
 
+      // Section labels like [Bars 1-4]
       if (/^\[Bars/.test(line)) {
         elements.push(
           <p key={i} className="text-xs font-semibold text-sienna/60 dark:text-rust/60 mt-3 mb-1 uppercase tracking-wide">
@@ -150,6 +173,7 @@ export default function Output({
         return
       }
 
+      // Tab lines — monospace, contained scroll
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
       if (isTab) {
         elements.push(
@@ -160,6 +184,7 @@ export default function Output({
         return
       }
 
+      // Regular text — always wraps
       elements.push(
         <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
@@ -173,6 +198,7 @@ export default function Output({
   return (
     <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-4 sm:p-8 w-full">
 
+      {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust">
           Your Progression
@@ -182,10 +208,12 @@ export default function Output({
         </span>
       </div>
 
+      {/* Output content */}
       <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 w-full overflow-x-auto">
         {renderOutput(result)}
       </div>
 
+      {/* Utility buttons */}
       <div className="flex flex-wrap gap-2 sm:gap-3">
         <button
           onClick={handleCopy}
