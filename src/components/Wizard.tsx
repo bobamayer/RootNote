@@ -26,11 +26,10 @@ const INITIAL: FormData = {
   tempo: '',
   timeSignature: '',
   bars: '',
-  complexity: 33,
+  complexity: 16,
 }
 
 const STEPS = ['Instrument', 'Genre & Mood', 'Details', 'Complexity']
-
 const WORKER_URL = import.meta.env.VITE_WORKER_URL
 
 export default function Wizard() {
@@ -40,7 +39,8 @@ export default function Wizard() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const update = (fields: Partial<FormData>) => setForm(f => ({ ...f, ...fields }))
+  const update = (fields: Partial<FormData>) =>
+    setForm(f => ({ ...f, ...fields }))
 
   const canProceed = () => {
     if (step === 0) return !!form.instrument
@@ -61,8 +61,7 @@ export default function Wizard() {
       if (data.error) throw new Error(data.error)
       setResult(data.result)
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Something went wrong'
-      setError(msg)
+      setError(e instanceof Error ? e.message : 'Something went wrong')
     } finally {
       setLoading(false)
     }
@@ -76,20 +75,36 @@ export default function Wizard() {
   }
 
   if (result) {
-    return <Output result={result} form={form} onReset={reset} onRegenerate={generate} loading={loading} />
+    return (
+      <Output
+        result={result}
+        form={form}
+        onReset={reset}
+        onRegenerate={generate}
+        loading={loading}
+      />
+    )
   }
 
   return (
-    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8">
+    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-5 sm:p-8">
+
+      {/* Progress steps */}
       <div className="flex items-center justify-between mb-8">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors
-              ${i < step ? 'bg-sage text-white' : i === step ? 'bg-sienna dark:bg-rust text-white' : 'bg-ink/10 dark:bg-cream/10 text-ink/40 dark:text-cream/40'}`}>
+              ${i < step
+                ? 'bg-sage text-white'
+                : i === step
+                ? 'bg-sienna dark:bg-rust text-white'
+                : 'bg-ink/10 dark:bg-cream/10 text-ink/40 dark:text-cream/40'
+              }`}>
               {i < step ? '✓' : i + 1}
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`h-0.5 w-12 mx-1 transition-colors ${i < step ? 'bg-sage' : 'bg-ink/10 dark:bg-cream/10'}`} />
+              <div className={`h-0.5 w-8 sm:w-12 mx-1 transition-colors
+                ${i < step ? 'bg-sage' : 'bg-ink/10 dark:bg-cream/10'}`} />
             )}
           </div>
         ))}
@@ -104,24 +119,34 @@ export default function Wizard() {
       {step === 2 && <StepDetails form={form} update={update} />}
       {step === 3 && <StepComplexity form={form} update={update} />}
 
-      {error && <p className="text-rust mt-4 text-sm">{error}</p>}
+      {error && (
+        <p className="text-rust mt-4 text-sm">{error}</p>
+      )}
 
       <div className="flex justify-between mt-8">
         {step > 0 ? (
-          <button onClick={() => setStep(s => s - 1)}
-            className="px-5 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust hover:bg-sienna/10 transition-colors">
+          <button
+            onClick={() => setStep(s => s - 1)}
+            className="px-5 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+          >
             Back
           </button>
         ) : <div />}
 
         {step < STEPS.length - 1 ? (
-          <button onClick={() => setStep(s => s + 1)} disabled={!canProceed()}
-            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity">
+          <button
+            onClick={() => setStep(s => s + 1)}
+            disabled={!canProceed()}
+            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 active:opacity-80 transition-opacity touch-manipulation"
+          >
             Next
           </button>
         ) : (
-          <button onClick={generate} disabled={loading}
-            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 transition-opacity">
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 active:opacity-80 transition-opacity touch-manipulation"
+          >
             {loading ? 'Generating…' : 'Generate Progression'}
           </button>
         )}
