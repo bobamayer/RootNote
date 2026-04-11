@@ -13,64 +13,46 @@ const NOTE_FREQUENCIES: Record<string, number> = {
   'Ab5': 830.61, 'A5': 880.00, 'A#5': 932.33, 'Bb5': 932.33, 'B5': 987.77,
 }
 
-// Semitone intervals for chord types
 const CHORD_INTERVALS: Record<string, number[]> = {
-  // Major
   '': [0, 4, 7, 12],
   'maj': [0, 4, 7, 12],
-  // Minor
   'm': [0, 3, 7, 12],
   'min': [0, 3, 7, 12],
-  // Dominant 7th
   '7': [0, 4, 7, 10],
-  // Major 7th
   'maj7': [0, 4, 7, 11],
   'M7': [0, 4, 7, 11],
-  // Minor 7th
   'm7': [0, 3, 7, 10],
   'min7': [0, 3, 7, 10],
-  // Minor major 7th
   'mM7': [0, 3, 7, 11],
   'mmaj7': [0, 3, 7, 11],
-  // Suspended
   'sus2': [0, 2, 7, 12],
   'sus4': [0, 5, 7, 12],
   '7sus4': [0, 5, 7, 10],
-  // Diminished
   'dim': [0, 3, 6, 12],
   'dim7': [0, 3, 6, 9],
   'o': [0, 3, 6, 9],
-  // Augmented
   'aug': [0, 4, 8, 12],
   '+': [0, 4, 8, 12],
-  // Add chords
   'add9': [0, 4, 7, 14],
   'add2': [0, 2, 4, 7],
   'madd9': [0, 3, 7, 14],
-  // 6th chords
   '6': [0, 4, 7, 9],
   'm6': [0, 3, 7, 9],
-  // 9th chords
   '9': [0, 4, 7, 10, 14],
   'maj9': [0, 4, 7, 11, 14],
   'm9': [0, 3, 7, 10, 14],
-  // 11th
   '11': [0, 4, 7, 10, 14, 17],
-  // Half diminished
   'm7b5': [0, 3, 6, 10],
   'ø': [0, 3, 6, 10],
-  // Power chord
   '5': [0, 7, 12],
 }
 
-// Root note to semitone from C
 const ROOT_SEMITONES: Record<string, number> = {
   'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
   'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
   'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11,
 }
 
-// Base frequency for C3
 const C3_FREQ = 130.81
 
 function semitoneToFreq(semitone: number): number {
@@ -80,35 +62,30 @@ function semitoneToFreq(semitone: number): number {
 function parseChordToFreqs(chordName: string): number[] {
   if (!chordName || chordName.length === 0) return []
 
-  // Parse root note (handle sharps and flats)
   let root = ''
   let suffix = ''
 
+  // Try two-char root first (C#, Db, Eb, etc)
   if (chordName.length >= 2 && (chordName[1] === '#' || chordName[1] === 'b')) {
-    root = chordName.slice(0, 2)
-    suffix = chordName.slice(2)
-  } else {
-    root = chordName.slice(0, 1)
-    suffix = chordName.slice(1)
+    const twoChar = chordName.slice(0, 2)
+    if (ROOT_SEMITONES[twoChar] !== undefined) {
+      root = twoChar
+      suffix = chordName.slice(2)
+    }
   }
 
-  // Handle 'Db', 'Eb', 'Ab', 'Bb', 'Gb' — two char roots
-  if (chordName.length >= 2 && chordName[1] === 'b' && ROOT_SEMITONES[chordName.slice(0, 2)] !== undefined) {
-    root = chordName.slice(0, 2)
-    suffix = chordName.slice(2)
+  // Fall back to single char root
+  if (!root) {
+    root = chordName.slice(0, 1)
+    suffix = chordName.slice(1)
   }
 
   const rootSemitone = ROOT_SEMITONES[root]
   if (rootSemitone === undefined) return []
 
-  // Find matching interval pattern
   const intervals = CHORD_INTERVALS[suffix] ?? CHORD_INTERVALS['']
 
-  // Build frequencies — spread across octave 3
-  return intervals.map(interval => {
-    const semitone = rootSemitone + interval
-    return semitoneToFreq(semitone)
-  })
+  return intervals.map(interval => semitoneToFreq(rootSemitone + interval))
 }
 
 function parseChords(text: string): string[] {
@@ -131,9 +108,23 @@ function parseChords(text: string): string[] {
   return []
 }
 
+// ─── Browser Detection ────────────────────────────────────────────────────────
+
+function isSafari(): boolean {
+  const ua = navigator.userAgent
+  return /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua)
+}
+
+function isChrome(): boolean {
+  const ua = navigator.userAgent
+  return /Chrome/.test(ua) || /CriOS/.test(ua)
+}
+
+// ─── Shared AudioContext ──────────────────────────────────────────────────────
+
 let audioCtx: AudioContext | null = null
 
-function getOrCreateContext(): AudioContext {
+function getContext(): AudioContext {
   const AC = (window as any).AudioContext || (window as any).webkitAudioContext
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AC()
@@ -141,6 +132,7 @@ function getOrCreateContext(): AudioContext {
   return audioCtx
 }
 
+// Silent buffer — unlocks iOS Safari on every tap
 function syncUnlock(ctx: AudioContext) {
   const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
   const src = ctx.createBufferSource()
@@ -148,6 +140,8 @@ function syncUnlock(ctx: AudioContext) {
   src.connect(ctx.destination)
   src.start(0)
 }
+
+// ─── Chord Scheduling ─────────────────────────────────────────────────────────
 
 function scheduleChords(ctx: AudioContext, chords: string[]): number {
   const chordDuration = 1.2
@@ -179,24 +173,94 @@ function scheduleChords(ctx: AudioContext, chords: string[]): number {
   return (chords.length * chordDuration + startOffset + 1.5) * 1000
 }
 
+// ─── Safari Play Path ─────────────────────────────────────────────────────────
+// Safari requires:
+// 1. AudioContext created or reused synchronously within tap handler
+// 2. Silent buffer played synchronously to unlock on every tap
+// 3. resume() called before scheduling if suspended
+
+function playSafari(chords: string[]): Promise<boolean> {
+  const ctx = getContext()
+
+  // Must run synchronously in tap handler
+  syncUnlock(ctx)
+
+  const doPlay = (): Promise<boolean> => {
+    const duration = scheduleChords(ctx, chords)
+    return new Promise(resolve => setTimeout(() => resolve(true), duration))
+  }
+
+  if (ctx.state === 'suspended') {
+    return ctx.resume().then(doPlay).catch(() => Promise.resolve(false))
+  }
+
+  return doPlay()
+}
+
+// ─── Chrome Play Path ─────────────────────────────────────────────────────────
+// Chrome requires:
+// 1. AudioContext.resume() called after a user gesture
+// 2. Does NOT need the silent buffer trick
+// 3. Fresh resume() on each play is more reliable than reusing suspended context
+// 4. Chrome on mobile (CriOS) behaves like desktop Chrome, not like iOS Safari
+
+function playChrome(chords: string[]): Promise<boolean> {
+  const ctx = getContext()
+
+  const doPlay = (): Promise<boolean> => {
+    const duration = scheduleChords(ctx, chords)
+    return new Promise(resolve => setTimeout(() => resolve(true), duration))
+  }
+
+  // Chrome always needs resume() called — even if state is 'running'
+  // it handles duplicate resume() calls gracefully
+  return ctx.resume().then(doPlay).catch(() => {
+    // If resume fails, try playing anyway
+    try {
+      return doPlay()
+    } catch {
+      return Promise.resolve(false)
+    }
+  })
+}
+
+// ─── Firefox / Other Play Path ────────────────────────────────────────────────
+// Firefox follows the standard Web Audio spec closely
+// resume() + play is reliable without special tricks
+
+function playStandard(chords: string[]): Promise<boolean> {
+  const ctx = getContext()
+
+  const doPlay = (): Promise<boolean> => {
+    const duration = scheduleChords(ctx, chords)
+    return new Promise(resolve => setTimeout(() => resolve(true), duration))
+  }
+
+  if (ctx.state === 'suspended') {
+    return ctx.resume().then(doPlay).catch(() => Promise.resolve(false))
+  }
+
+  return doPlay()
+}
+
+// ─── Public Hook ──────────────────────────────────────────────────────────────
+
 export function useAudio() {
   function playProgression(text: string): Promise<boolean> {
     const chords = parseChords(text)
     if (chords.length === 0) return Promise.resolve(false)
 
-    const ctx = getOrCreateContext()
-    syncUnlock(ctx)
-
-    const doPlay = (): Promise<boolean> => {
-      const duration = scheduleChords(ctx, chords)
-      return new Promise(resolve => setTimeout(() => resolve(true), duration))
+    try {
+      if (isSafari()) {
+        return playSafari(chords)
+      } else if (isChrome()) {
+        return playChrome(chords)
+      } else {
+        return playStandard(chords)
+      }
+    } catch {
+      return Promise.resolve(false)
     }
-
-    if (ctx.state === 'suspended') {
-      return ctx.resume().then(doPlay).catch(() => Promise.resolve(false))
-    }
-
-    return doPlay()
   }
 
   return { playProgression }
