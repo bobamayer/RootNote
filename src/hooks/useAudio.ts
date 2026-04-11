@@ -61,21 +61,20 @@ function parseChords(text: string): string[] {
         .replace(/\(repeated.*?\)/gi, '')
         .replace(/\[.*?\]/g, '')
         .trim()
-
       const chords = chordPart
         .split(/[\s\-–—,|\/\\]+/)
         .map(c => c.trim().replace(/[^A-Za-z0-9#b]/g, ''))
         .filter(c => c.length > 0 && CHORD_NOTES[c])
-
       if (chords.length > 0) return chords
     }
   }
   return []
 }
 
+// Single shared AudioContext — never closed, re-unlocked on every tap
 let audioCtx: AudioContext | null = null
 
-function getContext(): AudioContext {
+function getOrCreateContext(): AudioContext {
   const AC = (window as any).AudioContext || (window as any).webkitAudioContext
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AC()
@@ -83,6 +82,7 @@ function getContext(): AudioContext {
   return audioCtx
 }
 
+// Silent buffer trick — must run synchronously in tap handler to unlock iOS
 function syncUnlock(ctx: AudioContext) {
   const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
   const src = ctx.createBufferSource()
@@ -91,7 +91,7 @@ function syncUnlock(ctx: AudioContext) {
   src.start(0)
 }
 
-function playChords(ctx: AudioContext, chords: string[]): number {
+function scheduleChords(ctx: AudioContext, chords: string[]): number {
   const chordDuration = 1.2
   const noteFadeDuration = 0.8
   const startOffset = 0.15
@@ -123,18 +123,18 @@ function playChords(ctx: AudioContext, chords: string[]): number {
 }
 
 export function useAudio() {
+  // Must be called synchronously from a click handler — no async before this
   function playProgression(text: string): Promise<boolean> {
     const chords = parseChords(text)
     if (chords.length === 0) return Promise.resolve(false)
 
-    const ctx = getContext()
-    syncUnlock(ctx)
+    // Both of these run synchronously within the tap gesture
+    const ctx = getOrCreateContext()
+    syncUnlock(ctx) // Unlocks iOS on every tap
 
-    const doPlay = () => {
-      const duration = playChords(ctx, chords)
-      return new Promise<boolean>(resolve =>
-        setTimeout(() => resolve(true), duration)
-      )
+    const doPlay = (): Promise<boolean> => {
+      const duration = scheduleChords(ctx, chords)
+      return new Promise(resolve => setTimeout(() => resolve(true), duration))
     }
 
     if (ctx.state === 'suspended') {
