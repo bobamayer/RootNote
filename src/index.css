@@ -4,11 +4,5 @@
 
 body {
   font-family: Georgia, Cambria, serif;
-}
-
-.tab-output {
-  font-family: 'Courier New', Courier, monospace;
-  white-space: pre;
-  font-size: 0.85rem;
-  line-height: 1.6;
+  -webkit-tap-highlight-color: transparent;
 }
