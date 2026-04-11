@@ -13,42 +13,102 @@ const NOTE_FREQUENCIES: Record<string, number> = {
   'Ab5': 830.61, 'A5': 880.00, 'A#5': 932.33, 'Bb5': 932.33, 'B5': 987.77,
 }
 
-const CHORD_NOTES: Record<string, string[]> = {
-  'C': ['C3', 'E3', 'G3', 'C4'], 'G': ['G2', 'B2', 'D3', 'G3'],
-  'D': ['D3', 'F#3', 'A3', 'D4'], 'A': ['A2', 'C#3', 'E3', 'A3'],
-  'E': ['E2', 'G#2', 'B2', 'E3'], 'F': ['F3', 'A3', 'C4', 'F4'],
-  'Bb': ['Bb2', 'D3', 'F3', 'Bb3'], 'Eb': ['Eb3', 'G3', 'Bb3', 'Eb4'],
-  'Ab': ['Ab2', 'C3', 'Eb3', 'Ab3'], 'Db': ['Db3', 'F3', 'Ab3', 'Db4'],
-  'Gb': ['Gb2', 'Bb2', 'Db3', 'Gb3'], 'B': ['B2', 'D#3', 'F#3', 'B3'],
-  'Am': ['A2', 'C3', 'E3', 'A3'], 'Em': ['E2', 'G2', 'B2', 'E3'],
-  'Dm': ['D3', 'F3', 'A3', 'D4'], 'Bm': ['B2', 'D3', 'F#3', 'B3'],
-  'Gm': ['G2', 'Bb2', 'D3', 'G3'], 'Cm': ['C3', 'Eb3', 'G3', 'C4'],
-  'Fm': ['F3', 'Ab3', 'C4', 'F4'], 'F#m': ['F#3', 'A3', 'C#4', 'F#4'],
-  'C#m': ['C#3', 'E3', 'G#3', 'C#4'], 'G#m': ['G#2', 'B2', 'D#3', 'G#3'],
-  'Bbm': ['Bb2', 'Db3', 'F3', 'Bb3'], 'Ebm': ['Eb3', 'Gb3', 'Bb3', 'Eb4'],
-  'G7': ['G2', 'B2', 'D3', 'F3'], 'C7': ['C3', 'E3', 'G3', 'Bb3'],
-  'D7': ['D3', 'F#3', 'A3', 'C4'], 'A7': ['A2', 'C#3', 'E3', 'G3'],
-  'E7': ['E2', 'G#2', 'B2', 'D3'], 'F7': ['F3', 'A3', 'C4', 'Eb4'],
-  'B7': ['B2', 'D#3', 'F#3', 'A3'], 'Bb7': ['Bb2', 'D3', 'F3', 'Ab3'],
-  'Cmaj7': ['C3', 'E3', 'G3', 'B3'], 'Gmaj7': ['G2', 'B2', 'D3', 'F#3'],
-  'Dmaj7': ['D3', 'F#3', 'A3', 'C#4'], 'Amaj7': ['A2', 'C#3', 'E3', 'G#3'],
-  'Fmaj7': ['F3', 'A3', 'C4', 'E4'], 'Bbmaj7': ['Bb2', 'D3', 'F3', 'A3'],
-  'Emaj7': ['E2', 'G#2', 'B2', 'D#3'], 'Bmaj7': ['B2', 'D#3', 'F#3', 'A#3'],
-  'Am7': ['A2', 'C3', 'E3', 'G3'], 'Em7': ['E2', 'G2', 'B2', 'D3'],
-  'Dm7': ['D3', 'F3', 'A3', 'C4'], 'Bm7': ['B2', 'D3', 'F#3', 'A3'],
-  'Gm7': ['G2', 'Bb2', 'D3', 'F3'], 'Cm7': ['C3', 'Eb3', 'G3', 'Bb3'],
-  'F#m7': ['F#3', 'A3', 'C#4', 'E4'], 'C#m7': ['C#3', 'E3', 'G#3', 'B3'],
-  'Asus2': ['A2', 'B2', 'E3', 'A3'], 'Dsus2': ['D3', 'E3', 'A3', 'D4'],
-  'Esus2': ['E2', 'F#2', 'B2', 'E3'], 'Gsus2': ['G2', 'A2', 'D3', 'G3'],
-  'Asus4': ['A2', 'D3', 'E3', 'A3'], 'Dsus4': ['D3', 'G3', 'A3', 'D4'],
-  'Esus4': ['E2', 'A2', 'B2', 'E3'], 'Gsus4': ['G2', 'C3', 'D3', 'G3'],
-  'Csus2': ['C3', 'D3', 'G3', 'C4'], 'Csus4': ['C3', 'F3', 'G3', 'C4'],
-  'Bdim': ['B2', 'D3', 'F3', 'B3'], 'Cdim': ['C3', 'Eb3', 'Gb3', 'C4'],
-  'Ddim': ['D3', 'F3', 'Ab3', 'D4'], 'Edim': ['E3', 'G3', 'Bb3', 'E4'],
-  'Caug': ['C3', 'E3', 'G#3', 'C4'], 'Gaug': ['G2', 'B2', 'D#3', 'G3'],
-  'Daug': ['D3', 'F#3', 'A#3', 'D4'], 'Eaug': ['E2', 'G#2', 'C3', 'E3'],
-  'Fadd9': ['F3', 'A3', 'C4', 'G4'], 'Cadd9': ['C3', 'E3', 'G3', 'D4'],
-  'Gadd9': ['G2', 'B2', 'D3', 'A3'], 'Dadd9': ['D3', 'F#3', 'A3', 'E4'],
+// Semitone intervals for chord types
+const CHORD_INTERVALS: Record<string, number[]> = {
+  // Major
+  '': [0, 4, 7, 12],
+  'maj': [0, 4, 7, 12],
+  // Minor
+  'm': [0, 3, 7, 12],
+  'min': [0, 3, 7, 12],
+  // Dominant 7th
+  '7': [0, 4, 7, 10],
+  // Major 7th
+  'maj7': [0, 4, 7, 11],
+  'M7': [0, 4, 7, 11],
+  // Minor 7th
+  'm7': [0, 3, 7, 10],
+  'min7': [0, 3, 7, 10],
+  // Minor major 7th
+  'mM7': [0, 3, 7, 11],
+  'mmaj7': [0, 3, 7, 11],
+  // Suspended
+  'sus2': [0, 2, 7, 12],
+  'sus4': [0, 5, 7, 12],
+  '7sus4': [0, 5, 7, 10],
+  // Diminished
+  'dim': [0, 3, 6, 12],
+  'dim7': [0, 3, 6, 9],
+  'o': [0, 3, 6, 9],
+  // Augmented
+  'aug': [0, 4, 8, 12],
+  '+': [0, 4, 8, 12],
+  // Add chords
+  'add9': [0, 4, 7, 14],
+  'add2': [0, 2, 4, 7],
+  'madd9': [0, 3, 7, 14],
+  // 6th chords
+  '6': [0, 4, 7, 9],
+  'm6': [0, 3, 7, 9],
+  // 9th chords
+  '9': [0, 4, 7, 10, 14],
+  'maj9': [0, 4, 7, 11, 14],
+  'm9': [0, 3, 7, 10, 14],
+  // 11th
+  '11': [0, 4, 7, 10, 14, 17],
+  // Half diminished
+  'm7b5': [0, 3, 6, 10],
+  'ø': [0, 3, 6, 10],
+  // Power chord
+  '5': [0, 7, 12],
+}
+
+// Root note to semitone from C
+const ROOT_SEMITONES: Record<string, number> = {
+  'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+  'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+  'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11,
+}
+
+// Base frequency for C3
+const C3_FREQ = 130.81
+
+function semitoneToFreq(semitone: number): number {
+  return C3_FREQ * Math.pow(2, semitone / 12)
+}
+
+function parseChordToFreqs(chordName: string): number[] {
+  if (!chordName || chordName.length === 0) return []
+
+  // Parse root note (handle sharps and flats)
+  let root = ''
+  let suffix = ''
+
+  if (chordName.length >= 2 && (chordName[1] === '#' || chordName[1] === 'b')) {
+    root = chordName.slice(0, 2)
+    suffix = chordName.slice(2)
+  } else {
+    root = chordName.slice(0, 1)
+    suffix = chordName.slice(1)
+  }
+
+  // Handle 'Db', 'Eb', 'Ab', 'Bb', 'Gb' — two char roots
+  if (chordName.length >= 2 && chordName[1] === 'b' && ROOT_SEMITONES[chordName.slice(0, 2)] !== undefined) {
+    root = chordName.slice(0, 2)
+    suffix = chordName.slice(2)
+  }
+
+  const rootSemitone = ROOT_SEMITONES[root]
+  if (rootSemitone === undefined) return []
+
+  // Find matching interval pattern
+  const intervals = CHORD_INTERVALS[suffix] ?? CHORD_INTERVALS['']
+
+  // Build frequencies — spread across octave 3
+  return intervals.map(interval => {
+    const semitone = rootSemitone + interval
+    return semitoneToFreq(semitone)
+  })
 }
 
 function parseChords(text: string): string[] {
@@ -64,14 +124,13 @@ function parseChords(text: string): string[] {
       const chords = chordPart
         .split(/[\s\-–—,|\/\\]+/)
         .map(c => c.trim().replace(/[^A-Za-z0-9#b]/g, ''))
-        .filter(c => c.length > 0 && CHORD_NOTES[c])
+        .filter(c => c.length > 0)
       if (chords.length > 0) return chords
     }
   }
   return []
 }
 
-// Single shared AudioContext — never closed, re-unlocked on every tap
 let audioCtx: AudioContext | null = null
 
 function getOrCreateContext(): AudioContext {
@@ -82,7 +141,6 @@ function getOrCreateContext(): AudioContext {
   return audioCtx
 }
 
-// Silent buffer trick — must run synchronously in tap handler to unlock iOS
 function syncUnlock(ctx: AudioContext) {
   const buf = ctx.createBuffer(1, 1, ctx.sampleRate)
   const src = ctx.createBufferSource()
@@ -97,13 +155,12 @@ function scheduleChords(ctx: AudioContext, chords: string[]): number {
   const startOffset = 0.15
 
   chords.forEach((chord, i) => {
-    const notes = CHORD_NOTES[chord]
-    if (!notes) return
+    const freqs = parseChordToFreqs(chord)
+    if (freqs.length === 0) return
+
     const chordStart = ctx.currentTime + startOffset + i * chordDuration
 
-    notes.forEach((note, ni) => {
-      const freq = NOTE_FREQUENCIES[note]
-      if (!freq) return
+    freqs.forEach((freq, ni) => {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
       osc.connect(gain)
@@ -123,14 +180,12 @@ function scheduleChords(ctx: AudioContext, chords: string[]): number {
 }
 
 export function useAudio() {
-  // Must be called synchronously from a click handler — no async before this
   function playProgression(text: string): Promise<boolean> {
     const chords = parseChords(text)
     if (chords.length === 0) return Promise.resolve(false)
 
-    // Both of these run synchronously within the tap gesture
     const ctx = getOrCreateContext()
-    syncUnlock(ctx) // Unlocks iOS on every tap
+    syncUnlock(ctx)
 
     const doPlay = (): Promise<boolean> => {
       const duration = scheduleChords(ctx, chords)
