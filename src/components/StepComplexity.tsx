@@ -2,19 +2,19 @@ import { FormData } from './Wizard'
 
 const LEVELS = [
   {
-    value: 'beginner',
+    value: 16,
     label: 'Beginner',
     emoji: '🌱',
     desc: 'Open chords, simple shapes, easy to play',
   },
   {
-    value: 'intermediate',
+    value: 50,
     label: 'Intermediate',
     emoji: '🎸',
     desc: '7ths, sus chords, barre chords, moderate voicings',
   },
   {
-    value: 'advanced',
+    value: 84,
     label: 'Advanced',
     emoji: '🎓',
     desc: 'Extensions, jazz voicings, substitutions, complex shapes',
@@ -22,40 +22,33 @@ const LEVELS = [
 ]
 
 export default function StepComplexity({
-  form,
-  update,
+  form, update
 }: {
   form: FormData
   update: (f: Partial<FormData>) => void
 }) {
-  const selected = form.complexity < 34
-    ? 'beginner'
-    : form.complexity < 67
-    ? 'intermediate'
-    : 'advanced'
-
-  const select = (value: string) => {
-    update({
-      complexity: value === 'beginner' ? 16 : value === 'intermediate' ? 50 : 84,
-    })
-  }
+  const selectedLabel = form.complexity <= 16
+    ? 'Beginner'
+    : form.complexity <= 50
+    ? 'Intermediate'
+    : 'Advanced'
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {LEVELS.map((level) => (
+        {LEVELS.map(level => (
           <button
             key={level.value}
-            onClick={() => select(level.value)}
+            onClick={() => update({ complexity: level.value })}
             className={`p-4 rounded-xl border-2 text-left transition-all touch-manipulation
-              ${selected === level.value
+              ${form.complexity === level.value
                 ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10'
                 : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
               }`}
           >
             <span className="text-2xl block mb-2">{level.emoji}</span>
             <span className={`block font-serif font-bold text-base mb-1 ${
-              selected === level.value
+              form.complexity === level.value
                 ? 'text-sienna dark:text-rust'
                 : 'text-ink dark:text-cream'
             }`}>
@@ -81,7 +74,7 @@ export default function StepComplexity({
             ['Tempo', form.tempo || 'Auto'],
             ['Time Sig', form.timeSignature || '4/4'],
             ['Bars', form.bars || '4'],
-            ['Complexity', selected.charAt(0).toUpperCase() + selected.slice(1)],
+            ['Complexity', selectedLabel],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">
               <dt className="text-ink/40 dark:text-cream/40 w-24 shrink-0">{k}:</dt>
