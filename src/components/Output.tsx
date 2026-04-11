@@ -28,7 +28,7 @@ export default function Output({
     setPlayingMain(true)
     setPlayErrorMain(false)
     const mainSection = result.split(/\n---\n/)[0] || result
-    playProgression(mainSection).then((success) => {
+    playProgression(mainSection).then(success => {
       if (!success) setPlayErrorMain(true)
       setPlayingMain(false)
     })
@@ -38,11 +38,10 @@ export default function Output({
     setPlayingVariation(true)
     setPlayErrorVariation(false)
     const parts = result.split(/\n---\n/)
-    // Join all parts after the first in case there are multiple --- dividers
     const variationSection = parts.length > 1
       ? parts.slice(1).join('\n---\n')
       : parts[0]
-    playProgression(variationSection).then((success) => {
+    playProgression(variationSection).then(success => {
       if (!success) setPlayErrorVariation(true)
       setPlayingVariation(false)
     })
@@ -73,12 +72,11 @@ export default function Output({
     const lines = text.split('\n')
     const elements: React.ReactNode[] = []
     let isInVariation = false
-    let mainPlayButtonShown = false
-    let variationPlayButtonShown = false
+    let mainPlayShown = false
+    let variationPlayShown = false
 
     lines.forEach((line, i) => {
 
-      // Track section
       if (line.startsWith('## ')) {
         if (line.toLowerCase().includes('variation')) isInVariation = true
         elements.push(
@@ -89,17 +87,15 @@ export default function Output({
         return
       }
 
-      // Chord names line — inject play button after first occurrence in each section
       if (line.includes('Chord Names:')) {
-        const showMainPlay = !isInVariation && !mainPlayButtonShown
-        const showVariationPlay = isInVariation && !variationPlayButtonShown
-        if (showMainPlay) mainPlayButtonShown = true
-        if (showVariationPlay) variationPlayButtonShown = true
-
+        const showMain = !isInVariation && !mainPlayShown
+        const showVariation = isInVariation && !variationPlayShown
+        if (showMain) mainPlayShown = true
+        if (showVariation) variationPlayShown = true
+        const showButton = showMain || showVariation
         const isPlaying = isInVariation ? playingVariation : playingMain
-        const playError = isInVariation ? playErrorVariation : playErrorMain
+        const hasError = isInVariation ? playErrorVariation : playErrorMain
         const handlePlay = isInVariation ? handlePlayVariation : handlePlayMain
-        const showButton = showMainPlay || showVariationPlay
 
         elements.push(
           <div key={i}>
@@ -107,16 +103,16 @@ export default function Output({
               {line.replace(/\*\*/g, '')}
             </p>
             {showButton && (
-              <div className="flex items-center gap-3 mt-3 mb-2">
+              <div className="flex items-center gap-3 mt-3 mb-2 flex-wrap">
                 <button
                   onClick={handlePlay}
                   disabled={isPlaying}
-                  className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm sm:text-base hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation select-none"
+                  className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation select-none"
                 >
                   {isPlaying ? '♪ Playing…' : '▶ Play Chords'}
                 </button>
-                {playError && (
-                  <span className="text-xs text-rust/70 self-center">
+                {hasError && (
+                  <span className="text-xs text-rust/70">
                     Tap again to unlock audio
                   </span>
                 )}
@@ -127,7 +123,6 @@ export default function Output({
         return
       }
 
-      // Bold labels
       if (line.includes(':**')) {
         elements.push(
           <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
@@ -137,16 +132,15 @@ export default function Output({
         return
       }
 
-      // Divider
       if (line === '---') {
-        elements.push(<hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />)
+        elements.push(
+          <hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />
+        )
         return
       }
 
-      // Skip code fences
       if (line.startsWith('```') || line === '```') return
 
-      // Section labels like [Bars 1-4]
       if (/^\[Bars/.test(line)) {
         elements.push(
           <p key={i} className="text-xs font-semibold text-sienna/60 dark:text-rust/60 mt-3 mb-1 uppercase tracking-wide">
@@ -156,7 +150,6 @@ export default function Output({
         return
       }
 
-      // Tab lines
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
       if (isTab) {
         elements.push(
@@ -167,7 +160,6 @@ export default function Output({
         return
       }
 
-      // Regular text
       elements.push(
         <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
@@ -185,7 +177,7 @@ export default function Output({
         <h2 className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust">
           Your Progression
         </h2>
-        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2 max-w-[40%]">
+        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2 max-w-[45%]">
           {form.genre} · {form.instrument}
         </span>
       </div>
