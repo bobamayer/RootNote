@@ -27,7 +27,7 @@ export default function StepGenreMood({
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+        <label className="block text-sm font-medium text-moss-muted mb-2">
           Genre *
         </label>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -35,10 +35,10 @@ export default function StepGenreMood({
             <button
               key={g}
               onClick={() => update({ genre: g })}
-              className={`py-2 px-2 rounded-lg text-sm border transition-all touch-manipulation
+              className={`py-2 px-2 rounded text-sm border transition-all touch-manipulation
                 ${form.genre === g
-                  ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10 text-sienna dark:text-rust font-semibold'
-                  : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
+                  ? 'border-teal bg-tag-teal-bg text-teal font-medium'
+                  : 'border-line-strong hover:border-teal/40'
                 }`}
             >
               {g}
@@ -48,7 +48,7 @@ export default function StepGenreMood({
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+        <label className="block text-sm font-medium text-moss-muted mb-2">
           Mood / Feel * <span className="font-normal">(pick one or more)</span>
         </label>
         <div className="flex flex-wrap gap-2">
@@ -58,8 +58,8 @@ export default function StepGenreMood({
               onClick={() => toggleMood(m)}
               className={`py-1.5 px-3 rounded-full text-sm border transition-all touch-manipulation
                 ${form.moodTags.includes(m)
-                  ? 'border-sage bg-sage/20 text-sage font-semibold'
-                  : 'border-ink/15 dark:border-cream/15 hover:border-sage/50'
+                  ? 'border-plum bg-tag-plum-bg text-plum font-medium'
+                  : 'border-line-strong hover:border-plum/50'
                 }`}
             >
               {m}
@@ -69,7 +69,7 @@ export default function StepGenreMood({
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+        <label className="block text-sm font-medium text-moss-muted mb-2">
           Describe the vibe <span className="font-normal italic">(optional)</span>
         </label>
         <textarea
@@ -77,7 +77,7 @@ export default function StepGenreMood({
           onChange={e => update({ moodText: e.target.value })}
           placeholder="e.g. 'Like a rainy afternoon coffee shop' or 'Driving at night on empty roads'…"
           rows={2}
-          className="w-full rounded-lg border border-ink/15 dark:border-cream/15 bg-transparent p-3 text-sm focus:outline-none focus:border-sienna dark:focus:border-rust resize-none"
+          className="w-full rounded border border-line-strong bg-paper text-moss placeholder:text-moss-muted p-3 text-sm focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/25 resize-none"
         />
       </div>
     </div>
