@@ -1,24 +1,9 @@
 import { FormData } from './Wizard'
 
 const LEVELS = [
-  {
-    value: 16,
-    label: 'Beginner',
-    emoji: '🌱',
-    desc: 'Open chords, simple shapes, easy to play',
-  },
-  {
-    value: 50,
-    label: 'Intermediate',
-    emoji: '🎸',
-    desc: '7ths, sus chords, barre chords, moderate voicings',
-  },
-  {
-    value: 84,
-    label: 'Advanced',
-    emoji: '🎓',
-    desc: 'Extensions, jazz voicings, substitutions, complex shapes',
-  },
+  { value: 16, label: 'Beginner', emoji: '🌱', desc: 'Open chords, simple shapes, easy to play' },
+  { value: 50, label: 'Intermediate', emoji: '🎸', desc: '7ths, sus chords, barre chords, moderate voicings' },
+  { value: 84, label: 'Advanced', emoji: '🎓', desc: 'Extensions, jazz voicings, substitutions, complex shapes' },
 ]
 
 export default function StepComplexity({
@@ -40,29 +25,27 @@ export default function StepComplexity({
           <button
             key={level.value}
             onClick={() => update({ complexity: level.value })}
-            className={`p-4 rounded-xl border-2 text-left transition-all touch-manipulation
+            className={`p-4 rounded border text-left transition-all touch-manipulation
               ${form.complexity === level.value
-                ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10'
-                : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
+                ? 'border-teal bg-tag-teal-bg shadow-raised'
+                : 'border-line-strong hover:border-teal/40'
               }`}
           >
             <span className="text-2xl block mb-2">{level.emoji}</span>
-            <span className={`block font-serif font-bold text-base mb-1 ${
-              form.complexity === level.value
-                ? 'text-sienna dark:text-rust'
-                : 'text-ink dark:text-cream'
+            <span className={`block font-serif font-semibold text-base mb-1 ${
+              form.complexity === level.value ? 'text-teal' : 'text-moss'
             }`}>
               {level.label}
             </span>
-            <span className="block text-xs text-ink/60 dark:text-cream/50 leading-snug">
+            <span className="block text-xs text-moss-muted leading-snug">
               {level.desc}
             </span>
           </button>
         ))}
       </div>
 
-      <div className="border-t border-ink/10 dark:border-cream/10 pt-4">
-        <h3 className="text-sm font-semibold text-ink/70 dark:text-cream/70 mb-3">
+      <div className="border-t border-line pt-4">
+        <h3 className="text-sm font-medium text-moss-muted mb-3">
           Your progression summary:
         </h3>
         <dl className="space-y-1 text-sm">
@@ -77,8 +60,8 @@ export default function StepComplexity({
             ['Complexity', selectedLabel],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">
-              <dt className="text-ink/40 dark:text-cream/40 w-24 shrink-0">{k}:</dt>
-              <dd className="font-semibold">{v}</dd>
+              <dt className="text-moss-muted w-24 shrink-0">{k}:</dt>
+              <dd className="font-medium text-moss">{v}</dd>
             </div>
           ))}
         </dl>
