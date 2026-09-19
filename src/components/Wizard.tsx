@@ -1,9 +1,10 @@
-import { useState } from 'react'
+ import { useState } from 'react'
 import StepInstrument from './StepInstrument'
 import StepGenreMood from './StepGenreMood'
 import StepDetails from './StepDetails'
 import StepComplexity from './StepComplexity'
 import Output from './Output'
+import { ProgressionResponse } from '../types'
 
 export type FormData = {
   instrument: string
@@ -35,7 +36,7 @@ const WORKER_URL = import.meta.env.VITE_WORKER_URL
 export default function Wizard() {
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<FormData>(INITIAL)
-  const [result, setResult] = useState<string | null>(null)
+  const [result, setResult] = useState<ProgressionResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,7 +60,7 @@ export default function Wizard() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setResult(data.result)
+      setResult(data.progression as ProgressionResponse)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong')
     } finally {
