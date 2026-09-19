@@ -18,6 +18,8 @@ interface ProgressionResponse {
   variation: ProgressionSection
 }
 
+type Result<T> = { ok: true; value: T } | { ok: false; error: string; status: number }
+
 // ─── CORS ──────────────────────────────────────────────────────────────────
 
 const CORS_HEADERS = {
@@ -208,6 +210,73 @@ function isValidProgression(value: unknown, barCount: number): value is Progress
   return isValidSection(p.main, barCount) && isValidSection(p.variation, barCount)
 }
 
+// ─── Stage 1: talk to Claude ────────────────────────────────────────────────
+// This is the ONLY function in the file that knows the Anthropic API exists —
+// its job stops at "call the model, hand back the raw response or an error."
+// It doesn't know what a chord is. That's the point: when Phase 2 adds a
+// Python service, this function is untouched, and a new callPythonService()
+// sits next to it doing the equivalent job for that call.
+
+async function callClaude(prompt: string, tool: unknown, apiKey: string): Promise<Result<any>> {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 3000,
+      messages: [{ role: 'user', content: prompt }],
+      tools: [tool],
+      tool_choice: { type: 'tool', name: 'return_progression' },
+    }),
+  })
+
+  if (!response.ok) {
+    return { ok: false, error: `Claude API error (${response.status})`, status: 502 }
+  }
+
+  const data = await response.json()
+  return { ok: true, value: data }
+}
+
+// ─── Stage 2: interpret Claude's response ──────────────────────────────────
+// Pulls the forced tool call out of Claude's raw response and validates it
+// against the same shape the schema demanded. This is separate from
+// callClaude() on purpose: "did the HTTP call succeed" and "was the payload
+// actually well-formed" are two different failure modes, and Phase 2's
+// music-theory validation step will live right after this one, not inside it.
+
+function extractProgression(claudeData: any, barCount: number): Result<ProgressionResponse> {
+  const toolUse = claudeData.content?.find(
+    (block: any) => block.type === 'tool_use' && block.name === 'return_progression'
+  )
+
+  if (!toolUse) {
+    return { ok: false, error: 'Claude did not return a structured progression', status: 502 }
+  }
+
+  const progression = toolUse.input
+
+  if (!isValidProgression(progression, barCount)) {
+    return { ok: false, error: 'Claude returned malformed progression data', status: 502 }
+  }
+
+  return { ok: true, value: progression }
+}
+
+// ─── Stage 3: shape the client-facing payload ──────────────────────────────
+// Right now this is a straight passthrough. It exists as its own function
+// because it's the seam where Phase 2+ will merge in the Python service's
+// validated/normalized chords, and later a MIDI download URL, without
+// touching how Claude is called or how its output is parsed.
+
+function buildResponse(progression: ProgressionResponse) {
+  return { progression }
+}
+
 // ─── Worker ─────────────────────────────────────────────────────────────────
 
 export default {
@@ -247,44 +316,18 @@ export default {
       barCount,
       complexityLabel,
     })
+    const tool = buildProgressionTool(barCount)
 
-    const progressionTool = buildProgressionTool(barCount)
-
-    const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 3000,
-        messages: [{ role: 'user', content: prompt }],
-        tools: [progressionTool],
-        tool_choice: { type: 'tool', name: 'return_progression' },
-      }),
-    })
-
-    if (!anthropicResponse.ok) {
-      return errorResponse(`Claude API error (${anthropicResponse.status})`, 502)
+    const claudeResult = await callClaude(prompt, tool, env.ANTHROPIC_API_KEY)
+    if (!claudeResult.ok) {
+      return errorResponse(claudeResult.error, claudeResult.status)
     }
 
-    const data = (await anthropicResponse.json()) as any
-    const toolUse = data.content?.find(
-      (block: any) => block.type === 'tool_use' && block.name === 'return_progression'
-    )
-
-    if (!toolUse) {
-      return errorResponse('Claude did not return a structured progression', 502)
+    const extracted = extractProgression(claudeResult.value, barCount)
+    if (!extracted.ok) {
+      return errorResponse(extracted.error, extracted.status)
     }
 
-    const progression = toolUse.input
-
-    if (!isValidProgression(progression, barCount)) {
-      return errorResponse('Claude returned malformed progression data', 502)
-    }
-
-    return jsonResponse({ progression })
+    return jsonResponse(buildResponse(extracted.value))
   },
 }
