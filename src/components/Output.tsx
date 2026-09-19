@@ -1,11 +1,30 @@
 import { useState } from 'react'
 import { FormData } from './Wizard'
 import { useAudio } from '../hooks/useAudio'
+import { ProgressionResponse, ProgressionSection } from '../types'
+
+function formatSectionAsText(section: ProgressionSection, isVariation: boolean): string {
+  return [
+    `## ${section.label}`,
+    '',
+    `**Chord Names:** ${section.chords.map(c => c.name).join(' - ')}`,
+    '',
+    '**Tab:**',
+    section.tab,
+    '',
+    `**${isVariation ? 'The Twist' : 'Why This Works'}:**`,
+    section.explanation,
+  ].join('\n')
+}
+
+function formatProgressionAsText(result: ProgressionResponse): string {
+  return [formatSectionAsText(result.main, false), '---', formatSectionAsText(result.variation, true)].join('\n\n')
+}
 
 export default function Output({
   result, form, onReset, onRegenerate, loading
 }: {
-  result: string
+  result: ProgressionResponse
   form: FormData
   onReset: () => void
   onRegenerate: () => void
@@ -18,7 +37,9 @@ export default function Output({
   const [playErrorVariation, setPlayErrorVariation] = useState(false)
   const { playProgression } = useAudio()
 
-  if (!result || result.trim().length < 50) {
+  const isValid = result?.main?.chords?.length > 0 && result?.variation?.chords?.length > 0
+
+  if (!isValid) {
     return (
       <div className="bg-paper rounded-card shadow-rest border border-line p-8 text-center">
         <p className="text-moss-muted italic mb-4">
@@ -34,8 +55,10 @@ export default function Output({
     )
   }
 
+  const plainText = formatProgressionAsText(result)
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(result)
+    navigator.clipboard.writeText(plainText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -43,8 +66,7 @@ export default function Output({
   const handlePlayMain = () => {
     setPlayingMain(true)
     setPlayErrorMain(false)
-    const mainSection = result.split(/\n---\n/)[0] || result
-    playProgression(mainSection).then(success => {
+    playProgression(result.main.chords).then(success => {
       if (!success) setPlayErrorMain(true)
       setPlayingMain(false)
     })
@@ -53,18 +75,14 @@ export default function Output({
   const handlePlayVariation = () => {
     setPlayingVariation(true)
     setPlayErrorVariation(false)
-    const parts = result.split(/\n---\n/)
-    const variationSection = parts.length > 1
-      ? parts.slice(1).join('\n---\n')
-      : parts[0]
-    playProgression(variationSection).then(success => {
+    playProgression(result.variation.chords).then(success => {
       if (!success) setPlayErrorVariation(true)
       setPlayingVariation(false)
     })
   }
 
   const handleDownload = () => {
-    const blob = new Blob([result], { type: 'text/plain' })
+    const blob = new Blob([plainText], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -75,7 +93,7 @@ export default function Output({
   }
 
   const handleShare = () => {
-    const text = `Check out this chord progression I made with RootNote!\n\n${result}`
+    const text = `Check out this chord progression I made with RootNote!\n\n${plainText}`
     if (navigator.share) {
       navigator.share({ title: 'RootNote Progression', text })
     } else {
@@ -84,104 +102,53 @@ export default function Output({
     }
   }
 
-  const renderOutput = (text: string) => {
-    const lines = text.split('\n')
-    const elements: React.ReactNode[] = []
-    let isInVariation = false
-    let mainPlayShown = false
-    let variationPlayShown = false
+  const renderSection = (
+    section: ProgressionSection,
+    kind: 'main' | 'variation',
+    isFirst: boolean
+  ) => {
+    const isPlaying = kind === 'main' ? playingMain : playingVariation
+    const hasError = kind === 'main' ? playErrorMain : playErrorVariation
+    const handlePlay = kind === 'main' ? handlePlayMain : handlePlayVariation
 
-    lines.forEach((line, i) => {
+    return (
+      <div key={kind}>
+        <h2 className={`text-lg sm:text-xl font-serif font-semibold text-teal mb-2 ${isFirst ? '' : 'mt-6'}`}>
+          {section.label}
+        </h2>
 
-      if (line.startsWith('## ')) {
-        if (line.toLowerCase().includes('variation')) isInVariation = true
-        elements.push(
-          <h2 key={i} className="text-lg sm:text-xl font-serif font-semibold text-teal mt-6 mb-2">
-            {line.replace('## ', '')}
-          </h2>
-        )
-        return
-      }
-
-      if (line.includes('Chord Names:')) {
-        const showMain = !isInVariation && !mainPlayShown
-        const showVariation = isInVariation && !variationPlayShown
-        if (showMain) mainPlayShown = true
-        if (showVariation) variationPlayShown = true
-        const showButton = showMain || showVariation
-        const isPlaying = isInVariation ? playingVariation : playingMain
-        const hasError = isInVariation ? playErrorVariation : playErrorMain
-        const handlePlay = isInVariation ? handlePlayVariation : handlePlayMain
-
-        elements.push(
-          <div key={i}>
-            <p className="font-semibold text-moss mt-3 text-sm sm:text-base break-words">
-              {line.replace(/\*\*/g, '')}
-            </p>
-            {showButton && (
-              <div className="flex items-center gap-3 mt-3 mb-2 flex-wrap">
-                <button
-                  onClick={handlePlay}
-                  disabled={isPlaying}
-                  className="px-5 py-2 rounded border-[1.5px] border-plum text-plum font-medium text-sm hover:bg-tag-plum-bg transition-colors disabled:opacity-40 touch-manipulation select-none"
-                >
-                  {isPlaying ? '♪ Playing…' : '▶ Play Chords'}
-                </button>
-                {hasError && (
-                  <span className="text-xs text-brick">
-                    Tap again to unlock audio
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )
-        return
-      }
-
-      if (line.includes(':**')) {
-        elements.push(
-          <p key={i} className="font-semibold text-moss mt-4 text-sm sm:text-base">
-            {line.replace(/\*\*/g, '')}
-          </p>
-        )
-        return
-      }
-
-      if (line === '---') {
-        elements.push(<hr key={i} className="border-line my-5" />)
-        return
-      }
-
-      if (line.startsWith('```') || line === '```') return
-
-      if (/^\[Bars/.test(line)) {
-        elements.push(
-          <p key={i} className="text-xs font-semibold text-teal/70 mt-3 mb-1 uppercase tracking-wide">
-            {line}
-          </p>
-        )
-        return
-      }
-
-      const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
-      if (isTab) {
-        elements.push(
-          <p key={i} className="font-mono text-xs sm:text-sm text-moss whitespace-pre leading-relaxed">
-            {line}
-          </p>
-        )
-        return
-      }
-
-      elements.push(
-        <p key={i} className="text-sm sm:text-base text-moss-muted whitespace-normal break-words leading-relaxed">
-          {line || '\u00A0'}
+        <p className="font-semibold text-moss mt-3 text-sm sm:text-base break-words">
+          Chord Names: {section.chords.map(c => c.name).join(' - ')}
         </p>
-      )
-    })
 
-    return elements
+        <div className="flex items-center gap-3 mt-3 mb-2 flex-wrap">
+          <button
+            onClick={handlePlay}
+            disabled={isPlaying}
+            className="px-5 py-2 rounded border-[1.5px] border-plum text-plum font-medium text-sm hover:bg-tag-plum-bg transition-colors disabled:opacity-40 touch-manipulation select-none"
+          >
+            {isPlaying ? '♪ Playing…' : '▶ Play Chords'}
+          </button>
+          {hasError && (
+            <span className="text-xs text-brick">
+              Tap again to unlock audio
+            </span>
+          )}
+        </div>
+
+        <p className="font-semibold text-moss mt-4 text-sm sm:text-base">Tab:</p>
+        <pre className="font-mono text-xs sm:text-sm text-moss whitespace-pre leading-relaxed overflow-x-auto mt-1">
+          {section.tab}
+        </pre>
+
+        <p className="font-semibold text-moss mt-4 text-sm sm:text-base">
+          {kind === 'main' ? 'Why This Works:' : 'The Twist:'}
+        </p>
+        <p className="text-sm sm:text-base text-moss-muted whitespace-normal break-words leading-relaxed">
+          {section.explanation}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -197,7 +164,9 @@ export default function Output({
       </div>
 
       <div className="bg-fog rounded p-3 sm:p-5 mb-5 w-full overflow-x-auto">
-        {renderOutput(result)}
+        {renderSection(result.main, 'main', true)}
+        <hr className="border-line my-5" />
+        {renderSection(result.variation, 'variation', false)}
       </div>
 
       <div className="flex flex-wrap gap-2 sm:gap-3">
