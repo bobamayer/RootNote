@@ -87,30 +87,29 @@ export default function Wizard() {
   }
 
   return (
-    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-5 sm:p-8">
+    <div className="bg-paper rounded-card shadow-rest border border-line p-5 sm:p-8">
 
-      {/* Progress steps */}
       <div className="flex items-center justify-between mb-8">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors
               ${i < step
-                ? 'bg-sage text-white'
+                ? 'bg-plum text-paper'
                 : i === step
-                ? 'bg-sienna dark:bg-rust text-white'
-                : 'bg-ink/10 dark:bg-cream/10 text-ink/40 dark:text-cream/40'
+                ? 'bg-teal text-paper'
+                : 'bg-fog text-moss-muted'
               }`}>
               {i < step ? '✓' : i + 1}
             </div>
             {i < STEPS.length - 1 && (
               <div className={`h-0.5 w-8 sm:w-12 mx-1 transition-colors
-                ${i < step ? 'bg-sage' : 'bg-ink/10 dark:bg-cream/10'}`} />
+                ${i < step ? 'bg-plum' : 'bg-line'}`} />
             )}
           </div>
         ))}
       </div>
 
-      <h2 className="text-xl font-serif font-bold text-sienna dark:text-rust mb-6">
+      <h2 className="text-xl font-serif font-semibold text-teal mb-6">
         Step {step + 1}: {STEPS[step]}
       </h2>
 
@@ -120,14 +119,14 @@ export default function Wizard() {
       {step === 3 && <StepComplexity form={form} update={update} />}
 
       {error && (
-        <p className="text-rust mt-4 text-sm">{error}</p>
+        <p className="text-brick mt-4 text-sm">{error}</p>
       )}
 
       <div className="flex justify-between mt-8">
         {step > 0 ? (
           <button
             onClick={() => setStep(s => s - 1)}
-            className="px-5 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+            className="px-5 py-2 rounded border border-line-strong text-moss hover:bg-fog active:bg-fog transition-colors touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/25 focus-visible:ring-offset-2"
           >
             Back
           </button>
@@ -137,7 +136,7 @@ export default function Wizard() {
           <button
             onClick={() => setStep(s => s + 1)}
             disabled={!canProceed()}
-            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 active:opacity-80 transition-opacity touch-manipulation"
+            className="px-6 py-2 rounded bg-teal text-paper font-medium shadow-raised disabled:opacity-40 hover:bg-teal-hover active:shadow-rest transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/25 focus-visible:ring-offset-2"
           >
             Next
           </button>
@@ -145,7 +144,7 @@ export default function Wizard() {
           <button
             onClick={generate}
             disabled={loading}
-            className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white font-semibold disabled:opacity-40 hover:opacity-90 active:opacity-80 transition-opacity touch-manipulation"
+            className="px-6 py-2 rounded bg-teal text-paper font-medium shadow-raised disabled:opacity-40 hover:bg-teal-hover active:shadow-rest transition-all touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal/25 focus-visible:ring-offset-2"
           >
             {loading ? 'Generating…' : 'Generate Progression'}
           </button>
