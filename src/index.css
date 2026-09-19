@@ -1,8 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Public+Sans:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: Georgia, Cambria, serif;
+  font-family: 'Public Sans', system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
+  background-color: #E3E4DC;
+  color: #292E26;
 }
