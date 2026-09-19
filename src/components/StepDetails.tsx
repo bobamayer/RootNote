@@ -23,7 +23,7 @@ export default function StepDetails({
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+        <label className="block text-sm font-medium text-moss-muted mb-2">
           Key / Starting Note <span className="font-normal italic">(optional)</span>
         </label>
         <div className="flex flex-wrap gap-2">
@@ -31,10 +31,10 @@ export default function StepDetails({
             <button
               key={k}
               onClick={() => update({ key: form.key === k ? '' : k })}
-              className={`py-1.5 px-3 rounded-lg text-sm border transition-all font-mono touch-manipulation
+              className={`py-1.5 px-3 rounded text-sm border transition-all font-mono touch-manipulation
                 ${form.key === k
-                  ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10 text-sienna dark:text-rust font-bold'
-                  : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
+                  ? 'border-teal bg-tag-teal-bg text-teal font-semibold'
+                  : 'border-line-strong hover:border-teal/40'
                 }`}
             >
               {k}
@@ -45,13 +45,13 @@ export default function StepDetails({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+          <label className="block text-sm font-medium text-moss-muted mb-2">
             Time Signature
           </label>
           <select
             value={form.timeSignature}
             onChange={e => update({ timeSignature: e.target.value })}
-            className="w-full rounded-lg border border-ink/15 dark:border-cream/15 bg-transparent p-2 text-sm focus:outline-none focus:border-sienna dark:focus:border-rust"
+            className="w-full rounded border border-line-strong bg-paper text-moss p-2 text-sm focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/25"
           >
             <option value="">4/4 (default)</option>
             {TIME_SIGS.map(t => (
@@ -60,13 +60,13 @@ export default function StepDetails({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+          <label className="block text-sm font-medium text-moss-muted mb-2">
             Progression Length
           </label>
           <select
             value={form.bars}
             onChange={e => update({ bars: e.target.value })}
-            className="w-full rounded-lg border border-ink/15 dark:border-cream/15 bg-transparent p-2 text-sm focus:outline-none focus:border-sienna dark:focus:border-rust"
+            className="w-full rounded border border-line-strong bg-paper text-moss p-2 text-sm focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/25"
           >
             <option value="">4 bars (default)</option>
             {BARS.map(b => (
@@ -77,7 +77,7 @@ export default function StepDetails({
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-ink/70 dark:text-cream/70 mb-2">
+        <label className="block text-sm font-medium text-moss-muted mb-2">
           Tempo / Energy
         </label>
         <div className="flex flex-col gap-2">
@@ -85,10 +85,10 @@ export default function StepDetails({
             <button
               key={t}
               onClick={() => update({ tempo: form.tempo === t ? '' : t })}
-              className={`py-2 px-4 rounded-lg text-sm border text-left transition-all touch-manipulation
+              className={`py-2 px-4 rounded text-sm border text-left transition-all touch-manipulation
                 ${form.tempo === t
-                  ? 'border-sienna dark:border-rust bg-sienna/10 dark:bg-rust/10 text-sienna dark:text-rust font-semibold'
-                  : 'border-ink/15 dark:border-cream/15 hover:border-sienna/40 dark:hover:border-rust/40'
+                  ? 'border-teal bg-tag-teal-bg text-teal font-medium'
+                  : 'border-line-strong hover:border-teal/40'
                 }`}
             >
               {t}
