@@ -18,16 +18,15 @@ export default function Output({
   const [playErrorVariation, setPlayErrorVariation] = useState(false)
   const { playProgression } = useAudio()
 
-  // Guard — if result is too short something went wrong
   if (!result || result.trim().length < 50) {
     return (
-      <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-8 text-center">
-        <p className="text-ink/50 dark:text-cream/50 italic mb-4">
+      <div className="bg-paper rounded-card shadow-rest border border-line p-8 text-center">
+        <p className="text-moss-muted italic mb-4">
           Something went wrong generating your progression. Please try again.
         </p>
         <button
           onClick={onReset}
-          className="px-6 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-sm hover:opacity-90 touch-manipulation"
+          className="px-6 py-2 rounded bg-teal text-paper text-sm hover:bg-teal-hover touch-manipulation"
         >
           Start Over
         </button>
@@ -94,18 +93,16 @@ export default function Output({
 
     lines.forEach((line, i) => {
 
-      // Section headers
       if (line.startsWith('## ')) {
         if (line.toLowerCase().includes('variation')) isInVariation = true
         elements.push(
-          <h2 key={i} className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust mt-6 mb-2">
+          <h2 key={i} className="text-lg sm:text-xl font-serif font-semibold text-teal mt-6 mb-2">
             {line.replace('## ', '')}
           </h2>
         )
         return
       }
 
-      // Chord names line — inject play button after first in each section
       if (line.includes('Chord Names:')) {
         const showMain = !isInVariation && !mainPlayShown
         const showVariation = isInVariation && !variationPlayShown
@@ -118,7 +115,7 @@ export default function Output({
 
         elements.push(
           <div key={i}>
-            <p className="font-bold text-ink dark:text-cream mt-3 text-sm sm:text-base break-words">
+            <p className="font-semibold text-moss mt-3 text-sm sm:text-base break-words">
               {line.replace(/\*\*/g, '')}
             </p>
             {showButton && (
@@ -126,12 +123,12 @@ export default function Output({
                 <button
                   onClick={handlePlay}
                   disabled={isPlaying}
-                  className="px-5 py-2 rounded-xl border-2 border-sage/70 text-sage font-semibold text-sm hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation select-none"
+                  className="px-5 py-2 rounded border-[1.5px] border-plum text-plum font-medium text-sm hover:bg-tag-plum-bg transition-colors disabled:opacity-40 touch-manipulation select-none"
                 >
                   {isPlaying ? '♪ Playing…' : '▶ Play Chords'}
                 </button>
                 {hasError && (
-                  <span className="text-xs text-rust/70">
+                  <span className="text-xs text-brick">
                     Tap again to unlock audio
                   </span>
                 )}
@@ -142,51 +139,43 @@ export default function Output({
         return
       }
 
-      // Bold labels like **Why This Works:**
       if (line.includes(':**')) {
         elements.push(
-          <p key={i} className="font-bold text-ink dark:text-cream mt-4 text-sm sm:text-base">
+          <p key={i} className="font-semibold text-moss mt-4 text-sm sm:text-base">
             {line.replace(/\*\*/g, '')}
           </p>
         )
         return
       }
 
-      // Divider
       if (line === '---') {
-        elements.push(
-          <hr key={i} className="border-ink/10 dark:border-cream/10 my-5" />
-        )
+        elements.push(<hr key={i} className="border-line my-5" />)
         return
       }
 
-      // Skip code fences
       if (line.startsWith('```') || line === '```') return
 
-      // Section labels like [Bars 1-4]
       if (/^\[Bars/.test(line)) {
         elements.push(
-          <p key={i} className="text-xs font-semibold text-sienna/60 dark:text-rust/60 mt-3 mb-1 uppercase tracking-wide">
+          <p key={i} className="text-xs font-semibold text-teal/70 mt-3 mb-1 uppercase tracking-wide">
             {line}
           </p>
         )
         return
       }
 
-      // Tab lines — monospace, contained scroll
       const isTab = /^[eEBGDAd]\|/.test(line) || /^\|/.test(line)
       if (isTab) {
         elements.push(
-          <p key={i} className="font-mono text-xs sm:text-sm text-ink dark:text-cream whitespace-pre leading-relaxed">
+          <p key={i} className="font-mono text-xs sm:text-sm text-moss whitespace-pre leading-relaxed">
             {line}
           </p>
         )
         return
       }
 
-      // Regular text — always wraps
       elements.push(
-        <p key={i} className="text-sm sm:text-base text-ink/80 dark:text-cream/80 whitespace-normal break-words leading-relaxed">
+        <p key={i} className="text-sm sm:text-base text-moss-muted whitespace-normal break-words leading-relaxed">
           {line || '\u00A0'}
         </p>
       )
@@ -196,53 +185,50 @@ export default function Output({
   }
 
   return (
-    <div className="bg-cream dark:bg-darkcard rounded-2xl shadow-md border border-sienna/20 dark:border-rust/20 p-4 sm:p-8 w-full">
+    <div className="bg-paper rounded-card shadow-rest border border-line p-4 sm:p-8 w-full">
 
-      {/* Header */}
       <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-serif font-bold text-sienna dark:text-rust">
+        <h2 className="text-lg sm:text-xl font-serif font-semibold text-teal">
           Your Progression
         </h2>
-        <span className="text-xs text-ink/40 dark:text-cream/40 italic truncate ml-2 max-w-[45%]">
+        <span className="text-xs text-moss-muted italic truncate ml-2 max-w-[45%]">
           {form.genre} · {form.instrument}
         </span>
       </div>
 
-      {/* Output content */}
-      <div className="bg-parchment dark:bg-darkmuted rounded-xl p-3 sm:p-5 mb-5 w-full overflow-x-auto">
+      <div className="bg-fog rounded p-3 sm:p-5 mb-5 w-full overflow-x-auto">
         {renderOutput(result)}
       </div>
 
-      {/* Utility buttons */}
       <div className="flex flex-wrap gap-2 sm:gap-3">
         <button
           onClick={handleCopy}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+          className="px-3 sm:px-4 py-2 rounded border border-line-strong text-moss text-xs sm:text-sm hover:bg-fog transition-colors touch-manipulation"
         >
           {copied ? '✓ Copied!' : 'Copy'}
         </button>
         <button
           onClick={handleDownload}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+          className="px-3 sm:px-4 py-2 rounded border border-line-strong text-moss text-xs sm:text-sm hover:bg-fog transition-colors touch-manipulation"
         >
           Save as .txt
         </button>
         <button
           onClick={handleShare}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-sienna/40 dark:border-rust/40 text-sienna dark:text-rust text-xs sm:text-sm hover:bg-sienna/10 active:bg-sienna/20 transition-colors touch-manipulation"
+          className="px-3 sm:px-4 py-2 rounded border border-line-strong text-moss text-xs sm:text-sm hover:bg-fog transition-colors touch-manipulation"
         >
           Share
         </button>
         <button
           onClick={onRegenerate}
           disabled={loading}
-          className="px-3 sm:px-4 py-2 rounded-lg border border-sage/60 text-sage text-xs sm:text-sm hover:bg-sage/10 active:bg-sage/20 transition-colors disabled:opacity-40 touch-manipulation"
+          className="px-3 sm:px-4 py-2 rounded border-[1.5px] border-plum text-plum text-xs sm:text-sm hover:bg-tag-plum-bg transition-colors disabled:opacity-40 touch-manipulation"
         >
           {loading ? 'Regenerating…' : '↺ Regenerate'}
         </button>
         <button
           onClick={onReset}
-          className="px-3 sm:px-4 py-2 rounded-lg bg-sienna dark:bg-rust text-white text-xs sm:text-sm hover:opacity-90 active:opacity-80 transition-opacity ml-auto touch-manipulation"
+          className="px-3 sm:px-4 py-2 rounded bg-teal text-paper text-xs sm:text-sm hover:bg-teal-hover transition-colors ml-auto touch-manipulation"
         >
           Start Over
         </button>
