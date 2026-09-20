@@ -133,17 +133,38 @@ function findIntervals(quality: string): number[] {
   return CHORD_INTERVALS['']
 }
 
-// ─── Chord -> Frequencies ───────────────────────────────────────────────────
+// ─── Chord -> Voicing ───────────────────────────────────────────────────────
 // This is the one place chord theory gets interpreted, and it now reads
 // straight off the structured `root`/`quality` fields the Worker returns —
 // no re-parsing a display string like "F#m7" back apart.
+//
+// A "voice" is one note to actually sound, with its own relative loudness.
+// CHORD_INTERVALS already spreads extensions (9ths/11ths/13ths) upward
+// correctly, so the fix here isn't re-voicing every tone — it's adding a
+// bass note: every chord previously played with no note below the root's
+// own register, so nothing anchored it. One octave-down root, a bit louder,
+// gives the ear something to rest the chord on.
 
-function chordToFreqs(chord: Chord): number[] {
+interface Voice {
+  freq: number
+  gain: number
+}
+
+function voiceChord(chord: Chord): Voice[] {
   const rootSemitone = ROOT_SEMITONES[chord.root]
   if (rootSemitone === undefined) return []
 
   const intervals = findIntervals(chord.quality)
-  return intervals.map(interval => semitoneToFreq(rootSemitone + interval))
+
+  const voices: Voice[] = [
+    { freq: semitoneToFreq(rootSemitone - 12), gain: 1.3 },
+  ]
+
+  for (const interval of intervals) {
+    voices.push({ freq: semitoneToFreq(rootSemitone + interval), gain: 1.0 })
+  }
+
+  return voices
 }
 
 // ─── Browser Detection ────────────────────────────────────────────────────────
@@ -161,13 +182,33 @@ function isChrome(): boolean {
 // ─── AudioContext ─────────────────────────────────────────────────────────────
 
 let audioCtx: AudioContext | null = null
+let masterBus: DynamicsCompressorNode | null = null
 
 function getContext(): AudioContext {
   const AC = (window as any).AudioContext || (window as any).webkitAudioContext
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new AC()
+    masterBus = null // a new context needs a new compressor node
   }
   return audioCtx
+}
+
+// Every oscillator used to connect straight to ctx.destination — fine for
+// one note, but the more notes stacked in a chord (and now two oscillators
+// per note, see playVoice), the more they sum toward clipping. Routing
+// everything through one shared compressor keeps output controlled
+// regardless of how big a chord gets, instead of it distorting.
+function getMasterBus(ctx: AudioContext): DynamicsCompressorNode {
+  if (!masterBus) {
+    masterBus = ctx.createDynamicsCompressor()
+    masterBus.threshold.setValueAtTime(-18, ctx.currentTime)
+    masterBus.knee.setValueAtTime(24, ctx.currentTime)
+    masterBus.ratio.setValueAtTime(4, ctx.currentTime)
+    masterBus.attack.setValueAtTime(0.005, ctx.currentTime)
+    masterBus.release.setValueAtTime(0.25, ctx.currentTime)
+    masterBus.connect(ctx.destination)
+  }
+  return masterBus
 }
 
 function syncUnlock(ctx: AudioContext) {
@@ -178,32 +219,77 @@ function syncUnlock(ctx: AudioContext) {
   src.start(0)
 }
 
+// ─── Voice Playback ─────────────────────────────────────────────────────────
+// One note, two blended oscillators: a clean sine carries the fundamental,
+// and a faintly detuned triangle sits underneath it for body/warmth. A
+// single triangle wave alone is most of why this used to sound thin — its
+// upper harmonics get harsh fast, especially stacked across a whole chord.
+// A lowpass filter on each voice tames those harmonics further.
+
+function playVoice(
+  ctx: AudioContext,
+  bus: AudioNode,
+  freq: number,
+  peakGain: number,
+  startTime: number,
+  fadeDuration: number
+) {
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(3200, startTime)
+  filter.connect(bus)
+
+  const gain = ctx.createGain()
+  gain.connect(filter)
+  gain.gain.setValueAtTime(0, startTime)
+  gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.08)
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + fadeDuration)
+
+  const sine = ctx.createOscillator()
+  sine.type = 'sine'
+  sine.frequency.setValueAtTime(freq, startTime)
+  sine.connect(gain)
+  sine.start(startTime)
+  sine.stop(startTime + fadeDuration + 0.1)
+
+  const triangle = ctx.createOscillator()
+  triangle.type = 'triangle'
+  triangle.frequency.setValueAtTime(freq, startTime)
+  triangle.detune.setValueAtTime(6, startTime)
+  const triangleGain = ctx.createGain()
+  triangleGain.gain.setValueAtTime(0.45, startTime)
+  triangle.connect(triangleGain)
+  triangleGain.connect(gain)
+  triangle.start(startTime)
+  triangle.stop(startTime + fadeDuration + 0.1)
+}
+
 // ─── Chord Scheduling ─────────────────────────────────────────────────────────
 
 function scheduleChords(ctx: AudioContext, chords: Chord[]): number {
   const chordDuration = 1.2
-  const noteFadeDuration = 0.8
   const startOffset = 0.15
+  const bus = getMasterBus(ctx)
 
   chords.forEach((chord, i) => {
-    const freqs = chordToFreqs(chord)
-    if (freqs.length === 0) return
+    const voices = voiceChord(chord)
+    if (voices.length === 0) return
 
     const chordStart = ctx.currentTime + startOffset + i * chordDuration
 
-    freqs.forEach((freq, ni) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'triangle'
-      osc.frequency.setValueAtTime(freq, chordStart)
-      const nd = ni * 0.05
-      gain.gain.setValueAtTime(0, chordStart + nd)
-      gain.gain.linearRampToValueAtTime(0.15, chordStart + nd + 0.05)
-      gain.gain.exponentialRampToValueAtTime(0.001, chordStart + nd + noteFadeDuration)
-      osc.start(chordStart + nd)
-      osc.stop(chordStart + nd + noteFadeDuration + 0.1)
+    // Let notes ring most of the way into the next chord instead of decaying
+    // to silence with a gap before it starts — the old fixed 0.8s fade left
+    // roughly 0.4s of dead air before every chord change.
+    const fadeDuration = chordDuration * 0.92
+
+    // Scale down as chords get bigger (sqrt, not linear, since summed
+    // uncorrelated tones don't add loudness 1:1) so a 7-note chord isn't
+    // just a louder, more clipped version of a triad.
+    const levelScale = 0.6 / Math.sqrt(voices.length)
+
+    voices.forEach((voice, vi) => {
+      const strumOffset = vi * 0.012
+      playVoice(ctx, bus, voice.freq, voice.gain * levelScale, chordStart + strumOffset, fadeDuration)
     })
   })
 
