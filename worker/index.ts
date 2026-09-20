@@ -267,20 +267,78 @@ function extractProgression(claudeData: any, barCount: number): Result<Progressi
   return { ok: true, value: progression }
 }
 
-// ─── Stage 3: shape the client-facing payload ──────────────────────────────
-// Right now this is a straight passthrough. It exists as its own function
-// because it's the seam where Phase 2+ will merge in the Python service's
-// validated/normalized chords, and later a MIDI download URL, without
-// touching how Claude is called or how its output is parsed.
+// ─── Stage 3: talk to the Python service ───────────────────────────────────
+// Same shape as callClaude(): one job, hand back the raw response or an
+// error, know nothing about anything upstream or downstream of it. The
+// Worker stays the only thing either the frontend or the Python service
+// ever talks to — Python never sees the frontend, and the frontend never
+// sees Python. One trust boundary, one gate.
+//
+// Phase 2 scope: this proves the round trip works. The Python service
+// currently echoes the chords back unchanged; Phase 3 makes it actually
+// validate them against music21 and return corrections.
 
-function buildResponse(progression: ProgressionResponse) {
-  return { progression }
+async function callPythonService(
+  progression: ProgressionResponse,
+  env: { PYTHON_SERVICE_URL: string; PYTHON_SERVICE_API_KEY: string }
+): Promise<Result<{ main: Chord[]; variation: Chord[] }>> {
+  if (!env.PYTHON_SERVICE_URL) {
+    return { ok: false, error: 'PYTHON_SERVICE_URL not configured', status: 500 }
+  }
+
+  try {
+    const response = await fetch(`${env.PYTHON_SERVICE_URL}/validate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': env.PYTHON_SERVICE_API_KEY,
+      },
+      body: JSON.stringify({
+        main: progression.main.chords,
+        variation: progression.variation.chords,
+      }),
+    })
+
+    if (!response.ok) {
+      return { ok: false, error: `Python service error (${response.status})`, status: 502 }
+    }
+
+    const data = await response.json()
+    return { ok: true, value: data }
+  } catch {
+    return { ok: false, error: 'Python service unreachable', status: 502 }
+  }
+}
+
+function mergeValidatedChords(
+  progression: ProgressionResponse,
+  validated: { main: Chord[]; variation: Chord[] }
+): ProgressionResponse {
+  return {
+    main: { ...progression.main, chords: validated.main },
+    variation: { ...progression.variation, chords: validated.variation },
+  }
+}
+
+// ─── Stage 4: shape the client-facing payload ──────────────────────────────
+// Still a thin wrapper, but now it's honest about whether the Python
+// service actually ran. Phase 2 fails OPEN on purpose: if the Python
+// service is unreachable, the app still works with Claude's un-validated
+// chords rather than breaking generation over a feature that isn't load-
+// bearing yet. `validated: false` is how the frontend (or you, debugging)
+// can tell the difference without the request failing outright.
+
+function buildResponse(progression: ProgressionResponse, validated: boolean) {
+  return { progression, validated }
 }
 
 // ─── Worker ─────────────────────────────────────────────────────────────────
 
 export default {
-  async fetch(request: Request, env: { ANTHROPIC_API_KEY: string }): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: { ANTHROPIC_API_KEY: string; PYTHON_SERVICE_URL: string; PYTHON_SERVICE_API_KEY: string }
+  ): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS })
     }
@@ -328,6 +386,11 @@ export default {
       return errorResponse(extracted.error, extracted.status)
     }
 
-    return jsonResponse(buildResponse(extracted.value))
+    const validation = await callPythonService(extracted.value, env)
+    const finalProgression = validation.ok
+      ? mergeValidatedChords(extracted.value, validation.value)
+      : extracted.value
+
+    return jsonResponse(buildResponse(finalProgression, validation.ok))
   },
 }
