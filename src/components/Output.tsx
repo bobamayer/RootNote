@@ -66,7 +66,7 @@ export default function Output({
   const handlePlayMain = () => {
     setPlayingMain(true)
     setPlayErrorMain(false)
-    playProgression(result.main.chords).then(success => {
+    playProgression(result.main.chords, form.instrument).then(success => {
       if (!success) setPlayErrorMain(true)
       setPlayingMain(false)
     })
@@ -75,7 +75,7 @@ export default function Output({
   const handlePlayVariation = () => {
     setPlayingVariation(true)
     setPlayErrorVariation(false)
-    playProgression(result.variation.chords).then(success => {
+    playProgression(result.variation.chords, form.instrument).then(success => {
       if (!success) setPlayErrorVariation(true)
       setPlayingVariation(false)
     })
@@ -205,3 +205,4 @@ export default function Output({
     </div>
   )
 }
+
