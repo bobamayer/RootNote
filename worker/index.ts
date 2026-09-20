@@ -87,7 +87,7 @@ function buildSectionSchema(barCount: number) {
       tab: {
         type: 'string',
         description:
-          'ONE continuous multi-bar tab covering the whole progression — never a separate tab diagram repeated per chord. Guitar/Bass/Ukulele: exactly one line per string (Guitar: e B G D A E. Bass: G D A E. Ukulele: A E C G), each spanning every bar left to right, with "|" separating bars so all strings stay aligned in columns. Piano: one continuous line (or one per hand) of note names/fingering per bar, separated by "|", left to right. Put a single header line above the tab with the chord names positioned over their bar. Plain text with newlines, no markdown code fences. If the progression is longer than 4 bars, add a line labeling subsections, e.g. "[Bars 1-4]", above that segment of the same continuous tab.',
+          'ONE continuous multi-bar tab covering the whole progression — never a separate tab diagram repeated per chord. Guitar/Bass/Ukulele: exactly one line per string (Guitar: e B G D A E. Bass: G D A E. Ukulele: A E C G), each spanning every bar left to right, with "|" separating bars. Every bar\'s fret-data segment on every string MUST be exactly 10 characters wide (padded with trailing dashes), so all bars form fixed-width columns. Piano: one continuous line (or one per hand) of note names/fingering per bar, same fixed 10-character bar width, separated by "|". The header line above the tab MUST follow the exact column-alignment formula given in TAB RULES — chord names are never centered or eyeballed, they are padded by formula so they land exactly over their bar. Plain text with newlines, no markdown code fences. If the progression is longer than 4 bars, add a line labeling subsections, e.g. "[Bars 1-4]", above that segment of the same continuous tab.',
       },
       explanation: {
         type: 'string',
@@ -168,18 +168,20 @@ CHORD NOTATION RULES — you MUST follow these exactly for every chord's "name" 
 - NO Roman numerals
 - Accidentals: use # or b only e.g. C#m7 Bbmaj7 Ebsus2
 
-TAB RULES — CRITICAL, this is the part most often gotten wrong:
+TAB RULES — CRITICAL, this is the part most often gotten wrong. The chord name in the header line MUST sit exactly over its bar's fret data — not centered, not eyeballed. Follow this fixed-width formula mechanically:
 - Produce ONE continuous tab for the whole progression. Do NOT repeat a separate mini tab-diagram under each chord name — that stacks vertically and is unreadable. Real tab notation runs left to right: each string is exactly one line, and that one line covers every bar in order.
-- Separate bars within each string's line with "|" so every string stays aligned in the same columns. Example for a 4-bar guitar progression (Am7 - Fmaj7 - C - Em7):
-    Am7        Fmaj7      C          Em7
-    e|--0--|--0--|--0--|--0--|
-    B|--1--|--1--|--1--|--0--|
-    G|--0--|--2--|--0--|--0--|
-    D|--2--|--3--|--2--|--2--|
-    A|--0--|--3--|--3--|--2--|
-    E|-----|--1--|-----|-----|
-- Guitar: 6-string (e B G D A E). Bass: 4-string (G D A E). Ukulele: 4-string (A E C G). Piano: one continuous line (or one per hand) of note names/fingering per bar, separated by "|", left to right — not a separate diagram per chord.
-- Put a single header line above the tab with the chord names spaced out over their corresponding bar, like the example above.
+- Every bar's fret-data segment on every string is EXACTLY 10 characters wide: two dashes, then the fret number (or a single dash if that string isn't played in this bar), then trailing dashes to pad out to 10 characters total. Immediately follow every segment with "|". This makes every bar the same width, so all strings stay aligned in the same columns.
+- The header line starts with 2 leading spaces (matching a string label's width: one letter + "|"), then for each bar in order, the chord name left-justified and padded with spaces to exactly 11 characters (the bar's 10-character width plus the 1 character for its "|") before the next chord name starts. Padding with spaces to a fixed 11-character field for every single bar, in order, is what makes each name's first letter land in the exact same column as the first character of that bar's fret data — do this by counting characters, not by estimating.
+- Worked example, 4-bar guitar progression (Am7 - Fmaj7 - C - Em7) — count the columns yourself: every "|" lines up straight down the page, and each chord name's first letter lines up with the first character right after the "|" that starts its bar:
+  Am7        Fmaj7      C          Em7
+  e|--0-------|--0-------|--0-------|--0-------|
+  B|--1-------|--1-------|--1-------|--0-------|
+  G|--0-------|--2-------|--0-------|--0-------|
+  D|--2-------|--3-------|--2-------|--2-------|
+  A|--0-------|--3-------|--3-------|--2-------|
+  E|----------|--1-------|----------|----------|
+- Guitar: 6-string (e B G D A E). Bass: 4-string (G D A E). Ukulele: 4-string (A E C G). Piano: one continuous line (or one per hand) of note names/fingering per bar, same fixed 10-character bar width, separated by "|" — not a separate diagram per chord.
+- Before finalizing your answer, verify the tab column-by-column: every "|" character across every string line of a bar must be at the same position in the string, and every chord name in the header must start at the same position as the first character after the "|" that opens its bar. Fix the padding if it's off by even one space.
 ${sectionLabels}
 
 Both the main progression AND the variation must have exactly ${barCount} chords — one per bar.
