@@ -133,6 +133,91 @@ function findIntervals(quality: string): number[] {
   return CHORD_INTERVALS['']
 }
 
+// ─── Instrument Profiles ────────────────────────────────────────────────────
+// The four instrument choices in the wizard used to all play through the
+// exact same synth voice — picking "Bass" vs "Piano" changed nothing about
+// the sound. Each instrument now gets its own timbre (oscillator blend,
+// envelope shape, filter brightness) and, for bass, its own voicing logic
+// below, since a bassist doesn't play a whole chord's extensions.
+
+type InstrumentKey = 'piano' | 'guitarAcoustic' | 'guitarElectric' | 'bass' | 'ukulele'
+
+interface InstrumentProfile {
+  waveform: OscillatorType
+  secondaryWaveform: OscillatorType | null
+  secondaryGain: number
+  detuneCents: number
+  attack: number
+  decayCurve: 'pluck' | 'sustain'
+  filterCutoff: number
+  fadeMultiplier: number // shortens/lengthens ring time relative to the chord's slot
+}
+
+const INSTRUMENT_PROFILES: Record<InstrumentKey, InstrumentProfile> = {
+  piano: {
+    waveform: 'triangle',
+    secondaryWaveform: 'sine',
+    secondaryGain: 0.5,
+    detuneCents: 3,
+    attack: 0.01,
+    decayCurve: 'sustain',
+    filterCutoff: 4500,
+    fadeMultiplier: 1.0,
+  },
+  guitarAcoustic: {
+    waveform: 'sawtooth',
+    secondaryWaveform: 'triangle',
+    secondaryGain: 0.35,
+    detuneCents: 8,
+    attack: 0.005,
+    decayCurve: 'pluck',
+    filterCutoff: 3000,
+    fadeMultiplier: 0.75,
+  },
+  guitarElectric: {
+    waveform: 'sawtooth',
+    secondaryWaveform: 'square',
+    secondaryGain: 0.25,
+    detuneCents: 10,
+    attack: 0.004,
+    decayCurve: 'pluck',
+    filterCutoff: 3800,
+    fadeMultiplier: 0.95,
+  },
+  bass: {
+    waveform: 'sine',
+    secondaryWaveform: null,
+    secondaryGain: 0,
+    detuneCents: 0,
+    attack: 0.015,
+    decayCurve: 'sustain',
+    filterCutoff: 1200, // no upper harmonics — kept dark/low on purpose
+    fadeMultiplier: 1.05,
+  },
+  ukulele: {
+    waveform: 'triangle',
+    secondaryWaveform: 'sine',
+    secondaryGain: 0.3,
+    detuneCents: 6,
+    attack: 0.004,
+    decayCurve: 'pluck',
+    filterCutoff: 5000,
+    fadeMultiplier: 0.65, // decays fastest of all of them
+  },
+}
+
+// The wizard's instrument labels (see StepInstrument.tsx) aren't the same
+// strings as the profile keys above — this is the one place that mapping
+// lives, so a label change there only needs a fix here.
+function normalizeInstrument(instrument: string): InstrumentKey {
+  const lower = instrument.toLowerCase()
+  if (lower.includes('bass')) return 'bass'
+  if (lower.includes('ukulele')) return 'ukulele'
+  if (lower.includes('electric')) return 'guitarElectric'
+  if (lower.includes('guitar')) return 'guitarAcoustic'
+  return 'piano'
+}
+
 // ─── Chord -> Voicing ───────────────────────────────────────────────────────
 // This is the one place chord theory gets interpreted, and it now reads
 // straight off the structured `root`/`quality` fields the Worker returns —
@@ -140,21 +225,31 @@ function findIntervals(quality: string): number[] {
 //
 // A "voice" is one note to actually sound, with its own relative loudness.
 // CHORD_INTERVALS already spreads extensions (9ths/11ths/13ths) upward
-// correctly, so the fix here isn't re-voicing every tone — it's adding a
-// bass note: every chord previously played with no note below the root's
-// own register, so nothing anchored it. One octave-down root, a bit louder,
-// gives the ear something to rest the chord on.
+// correctly, so most instruments just get a bass note added: one octave
+// down from the root, a bit louder, so the ear has something to rest the
+// chord on. Bass is the exception — a real bassist plays the root (and the
+// fifth, if there is one), not a full 9th chord's worth of extensions, so
+// it gets its own much sparser voicing instead of reusing the full stack.
 
 interface Voice {
   freq: number
   gain: number
 }
 
-function voiceChord(chord: Chord): Voice[] {
+function voiceChord(chord: Chord, instrument: InstrumentKey): Voice[] {
   const rootSemitone = ROOT_SEMITONES[chord.root]
   if (rootSemitone === undefined) return []
 
   const intervals = findIntervals(chord.quality)
+
+  if (instrument === 'bass') {
+    const fifth = intervals.find(i => i % 12 === 7)
+    const voices: Voice[] = [{ freq: semitoneToFreq(rootSemitone - 12), gain: 1.3 }]
+    if (fifth !== undefined) {
+      voices.push({ freq: semitoneToFreq(rootSemitone - 12 + fifth), gain: 0.9 })
+    }
+    return voices
+  }
 
   const voices: Voice[] = [
     { freq: semitoneToFreq(rootSemitone - 12), gain: 1.3 },
@@ -220,11 +315,18 @@ function syncUnlock(ctx: AudioContext) {
 }
 
 // ─── Voice Playback ─────────────────────────────────────────────────────────
-// One note, two blended oscillators: a clean sine carries the fundamental,
-// and a faintly detuned triangle sits underneath it for body/warmth. A
-// single triangle wave alone is most of why this used to sound thin — its
-// upper harmonics get harsh fast, especially stacked across a whole chord.
-// A lowpass filter on each voice tames those harmonics further.
+// One note, two blended oscillators, both driven by the instrument's
+// profile instead of a fixed sine+triangle blend: the primary waveform
+// carries the fundamental, and a detuned secondary oscillator (its
+// waveform, gain, and detune all instrument-specific — some instruments,
+// like bass, have none) sits underneath for body/warmth. A lowpass filter
+// tuned per instrument tames harshness (bright for ukulele, dark for bass).
+//
+// decayCurve shapes the envelope: 'pluck' instruments (guitars, ukulele)
+// hit their peak fast and immediately start decaying — there's no sustain
+// plateau, the string is already dying the moment it's struck. 'sustain'
+// instruments (piano, bass) hold near peak level before the release fade,
+// closer to how a sustained tone actually behaves.
 
 function playVoice(
   ctx: AudioContext,
@@ -232,55 +334,73 @@ function playVoice(
   freq: number,
   peakGain: number,
   startTime: number,
-  fadeDuration: number
+  fadeDuration: number,
+  profile: InstrumentProfile
 ) {
   const filter = ctx.createBiquadFilter()
   filter.type = 'lowpass'
-  filter.frequency.setValueAtTime(3200, startTime)
+  filter.frequency.setValueAtTime(profile.filterCutoff, startTime)
   filter.connect(bus)
 
   const gain = ctx.createGain()
   gain.connect(filter)
   gain.gain.setValueAtTime(0, startTime)
-  gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.08)
-  gain.gain.exponentialRampToValueAtTime(0.001, startTime + fadeDuration)
+  gain.gain.linearRampToValueAtTime(peakGain, startTime + profile.attack)
 
-  const sine = ctx.createOscillator()
-  sine.type = 'sine'
-  sine.frequency.setValueAtTime(freq, startTime)
-  sine.connect(gain)
-  sine.start(startTime)
-  sine.stop(startTime + fadeDuration + 0.1)
+  if (profile.decayCurve === 'pluck') {
+    // Decay begins immediately after the attack peak — no sustain plateau.
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + fadeDuration)
+  } else {
+    // Hold near peak, then fall away — a true sustain plateau before release.
+    const sustainStart = startTime + profile.attack
+    const sustainEnd = startTime + fadeDuration * 0.6
+    gain.gain.setValueAtTime(peakGain, sustainStart)
+    gain.gain.linearRampToValueAtTime(peakGain * 0.85, sustainEnd)
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + fadeDuration)
+  }
 
-  const triangle = ctx.createOscillator()
-  triangle.type = 'triangle'
-  triangle.frequency.setValueAtTime(freq, startTime)
-  triangle.detune.setValueAtTime(6, startTime)
-  const triangleGain = ctx.createGain()
-  triangleGain.gain.setValueAtTime(0.45, startTime)
-  triangle.connect(triangleGain)
-  triangleGain.connect(gain)
-  triangle.start(startTime)
-  triangle.stop(startTime + fadeDuration + 0.1)
+  const stopTime = startTime + fadeDuration + 0.1
+
+  const primary = ctx.createOscillator()
+  primary.type = profile.waveform
+  primary.frequency.setValueAtTime(freq, startTime)
+  primary.connect(gain)
+  primary.start(startTime)
+  primary.stop(stopTime)
+
+  if (profile.secondaryWaveform && profile.secondaryGain > 0) {
+    const secondary = ctx.createOscillator()
+    secondary.type = profile.secondaryWaveform
+    secondary.frequency.setValueAtTime(freq, startTime)
+    secondary.detune.setValueAtTime(profile.detuneCents, startTime)
+    const secondaryGain = ctx.createGain()
+    secondaryGain.gain.setValueAtTime(profile.secondaryGain, startTime)
+    secondary.connect(secondaryGain)
+    secondaryGain.connect(gain)
+    secondary.start(startTime)
+    secondary.stop(stopTime)
+  }
 }
 
 // ─── Chord Scheduling ─────────────────────────────────────────────────────────
 
-function scheduleChords(ctx: AudioContext, chords: Chord[]): number {
+function scheduleChords(ctx: AudioContext, chords: Chord[], instrument: InstrumentKey): number {
+  const profile = INSTRUMENT_PROFILES[instrument]
   const chordDuration = 1.2
   const startOffset = 0.15
   const bus = getMasterBus(ctx)
 
   chords.forEach((chord, i) => {
-    const voices = voiceChord(chord)
+    const voices = voiceChord(chord, instrument)
     if (voices.length === 0) return
 
     const chordStart = ctx.currentTime + startOffset + i * chordDuration
 
     // Let notes ring most of the way into the next chord instead of decaying
-    // to silence with a gap before it starts — the old fixed 0.8s fade left
-    // roughly 0.4s of dead air before every chord change.
-    const fadeDuration = chordDuration * 0.92
+    // to silence with a gap before it starts. fadeMultiplier lets each
+    // instrument ring for a different fraction of its slot — a plucked
+    // ukulele string dies out faster than a sustained piano tone.
+    const fadeDuration = chordDuration * 0.92 * profile.fadeMultiplier
 
     // Scale down as chords get bigger (sqrt, not linear, since summed
     // uncorrelated tones don't add loudness 1:1) so a 7-note chord isn't
@@ -289,7 +409,7 @@ function scheduleChords(ctx: AudioContext, chords: Chord[]): number {
 
     voices.forEach((voice, vi) => {
       const strumOffset = vi * 0.012
-      playVoice(ctx, bus, voice.freq, voice.gain * levelScale, chordStart + strumOffset, fadeDuration)
+      playVoice(ctx, bus, voice.freq, voice.gain * levelScale, chordStart + strumOffset, fadeDuration, profile)
     })
   })
 
@@ -298,12 +418,12 @@ function scheduleChords(ctx: AudioContext, chords: Chord[]): number {
 
 // ─── Browser-Specific Play Paths ──────────────────────────────────────────────
 
-function playSafari(chords: Chord[]): Promise<boolean> {
+function playSafari(chords: Chord[], instrument: InstrumentKey): Promise<boolean> {
   const ctx = getContext()
   syncUnlock(ctx)
 
   const doPlay = (): Promise<boolean> => {
-    const duration = scheduleChords(ctx, chords)
+    const duration = scheduleChords(ctx, chords, instrument)
     return new Promise(resolve => setTimeout(() => resolve(true), duration))
   }
 
@@ -313,11 +433,11 @@ function playSafari(chords: Chord[]): Promise<boolean> {
   return doPlay()
 }
 
-function playChrome(chords: Chord[]): Promise<boolean> {
+function playChrome(chords: Chord[], instrument: InstrumentKey): Promise<boolean> {
   const ctx = getContext()
 
   const doPlay = (): Promise<boolean> => {
-    const duration = scheduleChords(ctx, chords)
+    const duration = scheduleChords(ctx, chords, instrument)
     return new Promise(resolve => setTimeout(() => resolve(true), duration))
   }
 
@@ -326,11 +446,11 @@ function playChrome(chords: Chord[]): Promise<boolean> {
   })
 }
 
-function playStandard(chords: Chord[]): Promise<boolean> {
+function playStandard(chords: Chord[], instrument: InstrumentKey): Promise<boolean> {
   const ctx = getContext()
 
   const doPlay = (): Promise<boolean> => {
-    const duration = scheduleChords(ctx, chords)
+    const duration = scheduleChords(ctx, chords, instrument)
     return new Promise(resolve => setTimeout(() => resolve(true), duration))
   }
 
@@ -343,13 +463,15 @@ function playStandard(chords: Chord[]): Promise<boolean> {
 // ─── Public Hook ──────────────────────────────────────────────────────────────
 
 export function useAudio() {
-  function playProgression(chords: Chord[]): Promise<boolean> {
+  function playProgression(chords: Chord[], instrumentLabel?: string): Promise<boolean> {
     if (!chords || chords.length === 0) return Promise.resolve(false)
 
+    const instrument = normalizeInstrument(instrumentLabel || 'piano')
+
     try {
-      if (isSafari()) return playSafari(chords)
-      if (isChrome()) return playChrome(chords)
-      return playStandard(chords)
+      if (isSafari()) return playSafari(chords, instrument)
+      if (isChrome()) return playChrome(chords, instrument)
+      return playStandard(chords, instrument)
     } catch {
       return Promise.resolve(false)
     }
