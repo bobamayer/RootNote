@@ -87,7 +87,7 @@ function buildSectionSchema(barCount: number) {
       tab: {
         type: 'string',
         description:
-          'Instrument-specific tab/notation covering every bar, as plain text with newlines (no markdown code fences). Guitar: 6-string tab (e B G D A E). Bass: 4-string (G D A E). Piano: note names with fingering. Ukulele: 4-string (A E C G). Show each chord\'s name above its tab block. If the progression is longer than 4 bars, label subsections inline, e.g. a line reading "[Bars 1-4]" before that group\'s tab.',
+          'ONE continuous multi-bar tab covering the whole progression — never a separate tab diagram repeated per chord. Guitar/Bass/Ukulele: exactly one line per string (Guitar: e B G D A E. Bass: G D A E. Ukulele: A E C G), each spanning every bar left to right, with "|" separating bars so all strings stay aligned in columns. Piano: one continuous line (or one per hand) of note names/fingering per bar, separated by "|", left to right. Put a single header line above the tab with the chord names positioned over their bar. Plain text with newlines, no markdown code fences. If the progression is longer than 4 bars, add a line labeling subsections, e.g. "[Bars 1-4]", above that segment of the same continuous tab.',
       },
       explanation: {
         type: 'string',
@@ -168,9 +168,18 @@ CHORD NOTATION RULES — you MUST follow these exactly for every chord's "name" 
 - NO Roman numerals
 - Accidentals: use # or b only e.g. C#m7 Bbmaj7 Ebsus2
 
-TAB RULES:
-- Guitar: 6-string (e B G D A E). Bass: 4-string (G D A E). Piano: note names with fingering. Ukulele: 4-string (A E C G).
-- Show every chord's name above its tab block.
+TAB RULES — CRITICAL, this is the part most often gotten wrong:
+- Produce ONE continuous tab for the whole progression. Do NOT repeat a separate mini tab-diagram under each chord name — that stacks vertically and is unreadable. Real tab notation runs left to right: each string is exactly one line, and that one line covers every bar in order.
+- Separate bars within each string's line with "|" so every string stays aligned in the same columns. Example for a 4-bar guitar progression (Am7 - Fmaj7 - C - Em7):
+    Am7        Fmaj7      C          Em7
+    e|--0--|--0--|--0--|--0--|
+    B|--1--|--1--|--1--|--0--|
+    G|--0--|--2--|--0--|--0--|
+    D|--2--|--3--|--2--|--2--|
+    A|--0--|--3--|--3--|--2--|
+    E|-----|--1--|-----|-----|
+- Guitar: 6-string (e B G D A E). Bass: 4-string (G D A E). Ukulele: 4-string (A E C G). Piano: one continuous line (or one per hand) of note names/fingering per bar, separated by "|", left to right — not a separate diagram per chord.
+- Put a single header line above the tab with the chord names spaced out over their corresponding bar, like the example above.
 ${sectionLabels}
 
 Both the main progression AND the variation must have exactly ${barCount} chords — one per bar.
