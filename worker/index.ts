@@ -274,14 +274,21 @@ function extractProgression(claudeData: any, barCount: number): Result<Progressi
 // ever talks to — Python never sees the frontend, and the frontend never
 // sees Python. One trust boundary, one gate.
 //
-// Phase 2 scope: this proves the round trip works. The Python service
-// currently echoes the chords back unchanged; Phase 3 makes it actually
-// validate them against music21 and return corrections.
+// As of Phase 3, the Python service actually validates each chord against
+// music21 and returns corrections for anything that wasn't real theory —
+// see python-service/main.py.
+
+interface TheoryCheckResult {
+  main: Chord[]
+  variation: Chord[]
+  ok: boolean
+  corrections: string[]
+}
 
 async function callPythonService(
   progression: ProgressionResponse,
   env: { PYTHON_SERVICE_URL: string; PYTHON_SERVICE_API_KEY: string }
-): Promise<Result<{ main: Chord[]; variation: Chord[] }>> {
+): Promise<Result<TheoryCheckResult>> {
   if (!env.PYTHON_SERVICE_URL) {
     return { ok: false, error: 'PYTHON_SERVICE_URL not configured', status: 500 }
   }
@@ -321,15 +328,21 @@ function mergeValidatedChords(
 }
 
 // ─── Stage 4: shape the client-facing payload ──────────────────────────────
-// Still a thin wrapper, but now it's honest about whether the Python
-// service actually ran. Phase 2 fails OPEN on purpose: if the Python
-// service is unreachable, the app still works with Claude's un-validated
-// chords rather than breaking generation over a feature that isn't load-
-// bearing yet. `validated: false` is how the frontend (or you, debugging)
-// can tell the difference without the request failing outright.
+// Two different questions get two different fields, on purpose:
+//   - `validated`: did we successfully reach the Python service at all?
+//     (connectivity — fails OPEN, see callPythonService above)
+//   - `theoryCheck`: given that we reached it, did every chord Claude
+//     produced actually hold up as real music theory, and if not, what
+//     got corrected? (content — only meaningful when `validated` is true)
+// Collapsing these into one flag would hide the difference between
+// "Python was unreachable" and "Python ran and found nothing wrong."
 
-function buildResponse(progression: ProgressionResponse, validated: boolean) {
-  return { progression, validated }
+function buildResponse(
+  progression: ProgressionResponse,
+  validated: boolean,
+  theoryCheck: { ok: boolean; corrections: string[] } | null
+) {
+  return { progression, validated, theoryCheck }
 }
 
 // ─── Worker ─────────────────────────────────────────────────────────────────
@@ -390,7 +403,10 @@ export default {
     const finalProgression = validation.ok
       ? mergeValidatedChords(extracted.value, validation.value)
       : extracted.value
+    const theoryCheck = validation.ok
+      ? { ok: validation.value.ok, corrections: validation.value.corrections }
+      : null
 
-    return jsonResponse(buildResponse(finalProgression, validation.ok))
+    return jsonResponse(buildResponse(finalProgression, validation.ok, theoryCheck))
   },
 }
